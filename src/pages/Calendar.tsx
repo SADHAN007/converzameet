@@ -11,12 +11,23 @@ import {
   Repeat,
   Users,
   Building2,
+  Shield,
+  Filter,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +43,8 @@ import {
   subMonths,
   startOfWeek,
   endOfWeek,
+  isPast,
+  isFuture,
 } from 'date-fns';
 import CalendarSyncMenu from '@/components/calendar/CalendarSyncMenu';
 import CreateMeetingDialog from '@/components/calendar/CreateMeetingDialog';
@@ -64,6 +77,7 @@ interface Meeting {
   recurrence_interval: number | null;
   recurrence_end_date: string | null;
   recurrence_days: string[] | null;
+  created_by: string | null;
   projects?: { name: string; color: string };
   participants?: MeetingParticipant[];
 }
@@ -82,7 +96,7 @@ interface Profile {
 }
 
 export default function CalendarPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -92,6 +106,8 @@ export default function CalendarPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
   const [creating, setCreating] = useState(false);
+  const [showAllMeetings, setShowAllMeetings] = useState(false);
+  const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchData();
@@ -152,6 +168,7 @@ export default function CalendarPage() {
           recurrence_interval: m.recurrence_interval ?? null,
           recurrence_end_date: m.recurrence_end_date ?? null,
           recurrence_days: m.recurrence_days ?? null,
+          created_by: m.created_by ?? null,
           projects: m.projects as { name: string; color: string } | undefined,
           participants: participantsByMeeting.get(m.id) || []
         })));
@@ -248,6 +265,7 @@ export default function CalendarPage() {
             ...data,
             status: data.status as 'scheduled' | 'completed' | 'cancelled',
             meeting_type: (data.meeting_type as 'online' | 'offline') || 'online',
+            created_by: data.created_by ?? null,
             projects: data.projects as { name: string; color: string } | undefined,
             participants: participantProfiles
           }]);
@@ -257,6 +275,7 @@ export default function CalendarPage() {
           ...data,
           status: data.status as 'scheduled' | 'completed' | 'cancelled',
           meeting_type: (data.meeting_type as 'online' | 'offline') || 'online',
+          created_by: data.created_by ?? null,
           projects: data.projects as { name: string; color: string } | undefined,
           participants: []
         }]);
@@ -300,8 +319,22 @@ export default function CalendarPage() {
   const calendarEnd = endOfWeek(monthEnd);
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
+  const getFilteredMeetings = () => {
+    let filtered = meetings;
+    
+    // If admin is viewing all meetings and filtering by user
+    if (isAdmin && showAllMeetings && selectedUserFilter !== 'all') {
+      filtered = meetings.filter(m => 
+        m.created_by === selectedUserFilter || 
+        m.participants?.some(p => p.user_id === selectedUserFilter)
+      );
+    }
+    
+    return filtered;
+  };
+
   const getMeetingsForDay = (date: Date) => {
-    return meetings.filter(m => isSameDay(new Date(m.start_time), date));
+    return getFilteredMeetings().filter(m => isSameDay(new Date(m.start_time), date));
   };
 
   const selectedDateMeetings = selectedDate ? getMeetingsForDay(selectedDate) : [];
@@ -326,11 +359,72 @@ export default function CalendarPage() {
           <h1 className="text-2xl font-bold">Calendar</h1>
           <p className="text-muted-foreground">Manage your meetings and schedule</p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Schedule Meeting
-        </Button>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border">
+              <Shield className="h-4 w-4 text-primary" />
+              <Label htmlFor="admin-view" className="text-sm font-medium cursor-pointer">
+                View All
+              </Label>
+              <Switch
+                id="admin-view"
+                checked={showAllMeetings}
+                onCheckedChange={setShowAllMeetings}
+              />
+            </div>
+          )}
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Schedule Meeting
+          </Button>
+        </div>
       </div>
+
+      {/* Admin Filter Panel */}
+      {isAdmin && showAllMeetings && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="py-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Filter by User:</span>
+              </div>
+              <Select value={selectedUserFilter} onValueChange={setSelectedUserFilter}>
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="All Users" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  {allProfiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={profile.avatar_url || undefined} />
+                          <AvatarFallback className="text-[10px]">
+                            {profile.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 
+                             profile.email.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        {profile.full_name || profile.email.split('@')[0]}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span>
+                  <Badge variant="outline" className="mr-1">{meetings.filter(m => isPast(new Date(m.end_time))).length}</Badge>
+                  Past
+                </span>
+                <span>
+                  <Badge variant="default" className="mr-1">{meetings.filter(m => isFuture(new Date(m.start_time))).length}</Badge>
+                  Upcoming
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <CreateMeetingDialog
         open={createDialogOpen}
