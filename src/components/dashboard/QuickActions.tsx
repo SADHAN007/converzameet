@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { MessageSquare, Calendar, FileText, Users, Plus } from 'lucide-react';
+import { MessageSquare, Calendar, FileText, Phone, Users, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import StartCallDialog from '@/components/call/StartCallDialog';
 
 interface QuickActionsProps {
   isAdmin: boolean;
@@ -29,6 +30,13 @@ const actions = [
     href: '/mom', 
     color: 'bg-success hover:bg-success/90',
     description: 'Create MOM'
+  },
+  { 
+    icon: Phone, 
+    label: 'Calls', 
+    href: '/calls', 
+    color: 'bg-emerald-500 hover:bg-emerald-600',
+    description: 'Call history'
   },
 ];
 
