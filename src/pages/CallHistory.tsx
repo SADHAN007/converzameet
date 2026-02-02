@@ -6,6 +6,7 @@ import {
   PhoneOutgoing, 
   PhoneMissed, 
   PhoneOff,
+  PhoneForwarded,
   Clock,
   CheckCircle,
   XCircle,
@@ -13,15 +14,18 @@ import {
   Filter,
   Calendar,
   User,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 import { format, formatDistanceToNow } from 'date-fns';
 import StartCallDialog from '@/components/call/StartCallDialog';
 
@@ -156,10 +160,44 @@ export default function CallHistory() {
   };
 
   const CallItem = ({ call, index }: { call: CallRecord; index: number }) => {
+    const { toast } = useToast();
+    const [callingBack, setCallingBack] = useState(false);
     const isOutgoing = call.caller_id === user?.id;
     const otherUser = isOutgoing ? call.recipient_profile : call.caller_profile;
     const status = statusConfig[call.status] || statusConfig.pending;
     const StatusIcon = status.icon;
+    
+    // Show call back for missed calls where current user was the recipient
+    const canCallBack = call.status === 'missed' && call.recipient_id === user?.id && otherUser;
+
+    const handleCallBack = async () => {
+      if (!otherUser) return;
+      setCallingBack(true);
+      
+      try {
+        const { error } = await supabase
+          .from('call_requests')
+          .insert({
+            caller_id: user?.id,
+            recipient_id: otherUser.id,
+          });
+
+        if (error) throw error;
+
+        toast({
+          title: '📞 Calling...',
+          description: `Calling ${otherUser.full_name || otherUser.email}`,
+        });
+      } catch (error: any) {
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to initiate call',
+          variant: 'destructive',
+        });
+      } finally {
+        setCallingBack(false);
+      }
+    };
 
     return (
       <motion.div
@@ -202,6 +240,30 @@ export default function CallHistory() {
               </div>
             </div>
           </div>
+
+          {/* Call Back button for missed calls */}
+          {canCallBack && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button
+                size="sm"
+                onClick={handleCallBack}
+                disabled={callingBack}
+                className="gap-1.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-md shadow-emerald-500/20"
+              >
+                {callingBack ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <PhoneForwarded className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">Call Back</span>
+              </Button>
+            </motion.div>
+          )}
 
           {/* Status & time */}
           <div className="flex items-center gap-3">
