@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useIsMobile } from '@/hooks/use-mobile';
+import ChatBot from '@/components/chat/ChatBot';
 
 export default function DashboardLayout() {
   const { user, isLoading } = useAuth();
@@ -60,6 +61,9 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+      
+      {/* Floating ChatBot */}
+      <ChatBot />
     </div>
   );
 }
