@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Users, Search, MoreVertical, Mail, Shield, ShieldCheck, UserPlus, Eye, EyeOff, Loader2, LucideIcon, Trash2, UserX, UserCheck } from 'lucide-react';
+import { Plus, Users, Search, MoreVertical, Mail, Shield, ShieldCheck, UserPlus, Eye, EyeOff, Loader2, LucideIcon, UserX, UserCheck } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,6 +73,7 @@ interface Profile {
   full_name: string | null;
   created_at: string;
   role?: AppRole;
+  is_active?: boolean;
 }
 
 interface Project {
@@ -102,10 +103,10 @@ export default function AdminUsers() {
   const [showPassword, setShowPassword] = useState(false);
   const [creating, setCreating] = useState(false);
   
-  // Delete user state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  // Toggle active state
+  const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
+  const [userToToggle, setUserToToggle] = useState<Profile | null>(null);
+  const [toggling, setToggling] = useState(false);
 
   useEffect(() => {
     if (isAdmin) {
@@ -239,35 +240,38 @@ export default function AdminUsers() {
     }
   };
 
-  const handleDeleteUser = async () => {
-    if (!userToDelete) return;
+  const handleToggleActive = async () => {
+    if (!userToToggle) return;
 
-    setDeleting(true);
+    setToggling(true);
     try {
-      const { error } = await supabase.functions.invoke('create-user', {
-        body: {
-          action: 'delete',
-          userId: userToDelete.id,
-        },
-      });
+      const newStatus = !userToToggle.is_active;
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: newStatus })
+        .eq('id', userToToggle.id);
 
       if (error) throw error;
 
-      setProfiles(profiles.filter(p => p.id !== userToDelete.id));
+      setProfiles(profiles.map(p => 
+        p.id === userToToggle.id ? { ...p, is_active: newStatus } : p
+      ));
+      
       toast({
-        title: 'User deleted',
-        description: `${userToDelete.email} has been deleted`,
+        title: newStatus ? 'User activated' : 'User deactivated',
+        description: `${userToToggle.email} has been ${newStatus ? 'activated' : 'deactivated'}`,
       });
-      setDeleteDialogOpen(false);
-      setUserToDelete(null);
+      setToggleDialogOpen(false);
+      setUserToToggle(null);
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to delete user',
+        description: error.message || 'Failed to update user status',
         variant: 'destructive',
       });
     } finally {
-      setDeleting(false);
+      setToggling(false);
     }
   };
 
@@ -362,13 +366,19 @@ export default function AdminUsers() {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-foreground truncate">
+                          <h3 className={`font-semibold truncate ${profile.is_active === false ? 'text-muted-foreground' : 'text-foreground'}`}>
                             {profile.full_name || profile.email.split('@')[0]}
                           </h3>
                           {profile.role && (
                             <Badge className={ROLE_CONFIG[profile.role].color}>
                               <RoleIcon role={profile.role} className="h-3 w-3 mr-1" />
                               {ROLE_CONFIG[profile.role].label}
+                            </Badge>
+                          )}
+                          {profile.is_active === false && (
+                            <Badge variant="outline" className="border-destructive/50 text-destructive">
+                              <UserX className="h-3 w-3 mr-1" />
+                              Inactive
                             </Badge>
                           )}
                           {profile.id === user?.id && (
@@ -427,14 +437,22 @@ export default function AdminUsers() {
                             })}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
                               onClick={() => {
-                                setUserToDelete(profile);
-                                setDeleteDialogOpen(true);
+                                setUserToToggle(profile);
+                                setToggleDialogOpen(true);
                               }}
                             >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete User
+                              {profile.is_active !== false ? (
+                                <>
+                                  <UserX className="h-4 w-4 mr-2" />
+                                  Deactivate User
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Activate User
+                                </>
+                              )}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -592,32 +610,42 @@ export default function AdminUsers() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete user confirmation dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      {/* Toggle active status confirmation dialog */}
+      <AlertDialog open={toggleDialogOpen} onOpenChange={setToggleDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogTitle>
+              {userToToggle?.is_active !== false ? 'Deactivate User' : 'Activate User'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {userToDelete?.full_name || userToDelete?.email}? 
-              This action cannot be undone. All their data will be permanently removed.
+              {userToToggle?.is_active !== false 
+                ? `Are you sure you want to deactivate ${userToToggle?.full_name || userToToggle?.email}? They will no longer be able to log in.`
+                : `Are you sure you want to activate ${userToToggle?.full_name || userToToggle?.email}? They will be able to log in again.`
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={toggling}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteUser}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleToggleActive}
+              disabled={toggling}
+              className={userToToggle?.is_active !== false 
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" 
+                : ""
+              }
             >
-              {deleting ? (
+              {toggling ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
+                  {userToToggle?.is_active !== false ? 'Deactivating...' : 'Activating...'}
                 </>
               ) : (
                 <>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  {userToToggle?.is_active !== false ? (
+                    <><UserX className="h-4 w-4 mr-2" />Deactivate</>
+                  ) : (
+                    <><UserCheck className="h-4 w-4 mr-2" />Activate</>
+                  )}
                 </>
               )}
             </AlertDialogAction>
