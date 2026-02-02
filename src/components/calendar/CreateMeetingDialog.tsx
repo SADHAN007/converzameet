@@ -173,7 +173,7 @@ export default function CreateMeetingDialog({
 
   const filteredProfiles = profiles.filter(p => p.id !== currentUserId);
 
-  const StepIndicator = () => (
+  const renderStepIndicator = () => (
     <div className="flex items-center justify-center gap-2 py-4 border-b border-border/50">
       {STEPS.map((step, index) => {
         const Icon = step.icon;
@@ -209,7 +209,7 @@ export default function CreateMeetingDialog({
     </div>
   );
 
-  const Step1Basics = () => (
+  const renderStep1Basics = () => (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -353,7 +353,7 @@ export default function CreateMeetingDialog({
     </motion.div>
   );
 
-  const Step2DateTime = () => (
+  const renderStep2DateTime = () => (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -417,7 +417,7 @@ export default function CreateMeetingDialog({
     </motion.div>
   );
 
-  const Step3Participants = () => (
+  const renderStep3Participants = () => (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -500,7 +500,7 @@ export default function CreateMeetingDialog({
     </motion.div>
   );
 
-  const NavigationButtons = () => (
+  const renderNavigationButtons = () => (
     <div className="flex items-center justify-between gap-3 pt-4 border-t">
       {currentStep > 0 ? (
         <Button variant="outline" onClick={() => setCurrentStep(s => s - 1)}>
@@ -540,15 +540,15 @@ export default function CreateMeetingDialog({
 
   const content = (
     <div className="space-y-4">
-      <StepIndicator />
+      {renderStepIndicator()}
       <div className={cn('px-1', isMobile ? 'min-h-[400px]' : 'min-h-[350px]')}>
         <AnimatePresence mode="wait">
-          {currentStep === 0 && <Step1Basics key="step1" />}
-          {currentStep === 1 && <Step2DateTime key="step2" />}
-          {currentStep === 2 && <Step3Participants key="step3" />}
+          {currentStep === 0 && renderStep1Basics()}
+          {currentStep === 1 && renderStep2DateTime()}
+          {currentStep === 2 && renderStep3Participants()}
         </AnimatePresence>
       </div>
-      <NavigationButtons />
+      {renderNavigationButtons()}
     </div>
   );
 
