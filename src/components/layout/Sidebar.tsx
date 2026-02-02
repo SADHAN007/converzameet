@@ -11,6 +11,7 @@ import {
   LogOut,
   ChevronLeft,
   UserCircle,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -136,9 +137,10 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
         )}
       </nav>
 
-      {/* Profile link */}
-      <div className="px-3 pb-2">
+      {/* Bottom links */}
+      <div className="px-3 pb-2 space-y-1">
         <NavItem to="/profile" icon={UserCircle} label="My Profile" />
+        <NavItem to="/install" icon={Download} label="Install App" />
       </div>
 
       {/* User section */}
