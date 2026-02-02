@@ -133,7 +133,7 @@ export default function MOMPage() {
           .select('*, projects(name, color)')
           .order('created_at', { ascending: false }),
         supabase.from('projects').select('id, name, color').order('name'),
-        supabase.from('profiles').select('id, full_name, email, avatar_url').order('full_name'),
+        supabase.from('profiles_public').select('id, full_name, email, avatar_url').order('full_name'),
       ]);
 
       if (profilesRes.data) setAllProfiles(profilesRes.data);
@@ -153,7 +153,7 @@ export default function MOMPage() {
         
         if (allUserIds.length > 0) {
           const { data: profilesData } = await supabase
-            .from('profiles')
+            .from('profiles_public')
             .select('id, full_name, email, avatar_url')
             .in('id', allUserIds);
           
@@ -227,7 +227,7 @@ export default function MOMPage() {
 
       if (data) {
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('profiles_public')
           .select('full_name, email, avatar_url')
           .eq('id', user?.id)
           .maybeSingle();

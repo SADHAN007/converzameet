@@ -432,7 +432,39 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_public: {
+        Row: {
+          avatar_url: string | null
+          company_name: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string | null
+          is_active: boolean | null
+          job_title: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          job_title?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          job_title?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       is_admin: { Args: { _user_id: string }; Returns: boolean }

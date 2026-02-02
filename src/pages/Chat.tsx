@@ -86,10 +86,10 @@ export default function Chat() {
       .limit(100);
 
     if (messagesData) {
-      // Fetch profiles for messages
+      // Fetch profiles for messages using public view
       const userIds = [...new Set(messagesData.map(m => m.user_id))];
       const { data: profilesData } = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select('id, full_name, email')
         .in('id', userIds);
 
@@ -117,10 +117,10 @@ export default function Chat() {
           const newMsg = payload.new as any;
           // Fetch the profile for this message
           const { data: profile } = await supabase
-            .from('profiles')
+            .from('profiles_public')
             .select('full_name, email')
             .eq('id', newMsg.user_id)
-            .single();
+            .maybeSingle();
 
           setMessages(prev => [...prev, {
             ...newMsg,

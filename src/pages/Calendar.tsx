@@ -128,7 +128,8 @@ export default function CalendarPage() {
           .lte('start_time', end.toISOString())
           .order('start_time'),
         supabase.from('projects').select('id, name, color').order('name'),
-        supabase.from('profiles').select('id, full_name, email, avatar_url').order('full_name'),
+        // Use profiles_public view for non-sensitive data
+        supabase.from('profiles_public').select('id, full_name, email, avatar_url').order('full_name'),
       ]);
 
       if (profilesRes.data) setAllProfiles(profilesRes.data);
