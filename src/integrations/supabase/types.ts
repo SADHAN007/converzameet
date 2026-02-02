@@ -89,6 +89,10 @@ export type Database = {
           location: string | null
           meeting_link: string | null
           project_id: string
+          recurrence_days: string[] | null
+          recurrence_end_date: string | null
+          recurrence_interval: number | null
+          recurrence_pattern: string | null
           start_time: string
           status: Database["public"]["Enums"]["meeting_status"]
           title: string
@@ -104,6 +108,10 @@ export type Database = {
           location?: string | null
           meeting_link?: string | null
           project_id: string
+          recurrence_days?: string[] | null
+          recurrence_end_date?: string | null
+          recurrence_interval?: number | null
+          recurrence_pattern?: string | null
           start_time: string
           status?: Database["public"]["Enums"]["meeting_status"]
           title: string
@@ -119,6 +127,10 @@ export type Database = {
           location?: string | null
           meeting_link?: string | null
           project_id?: string
+          recurrence_days?: string[] | null
+          recurrence_end_date?: string | null
+          recurrence_interval?: number | null
+          recurrence_pattern?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["meeting_status"]
           title?: string
