@@ -12,7 +12,6 @@ import {
   Users,
   Building2,
   Shield,
-  Filter,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -21,13 +20,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +41,7 @@ import {
 import CalendarSyncMenu from '@/components/calendar/CalendarSyncMenu';
 import CreateMeetingDialog from '@/components/calendar/CreateMeetingDialog';
 import MeetingResponseActions from '@/components/calendar/MeetingResponseActions';
+import AdminMeetingsList from '@/components/calendar/AdminMeetingsList';
 
 interface MeetingParticipant {
   id: string;
@@ -381,50 +374,14 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Admin Filter Panel */}
+      {/* Admin Meetings List */}
       {isAdmin && showAllMeetings && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="py-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">Filter by User:</span>
-              </div>
-              <Select value={selectedUserFilter} onValueChange={setSelectedUserFilter}>
-                <SelectTrigger className="w-[250px]">
-                  <SelectValue placeholder="All Users" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  {allProfiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
-                          <AvatarImage src={profile.avatar_url || undefined} />
-                          <AvatarFallback className="text-[10px]">
-                            {profile.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 
-                             profile.email.slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        {profile.full_name || profile.email.split('@')[0]}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>
-                  <Badge variant="outline" className="mr-1">{meetings.filter(m => isPast(new Date(m.end_time))).length}</Badge>
-                  Past
-                </span>
-                <span>
-                  <Badge variant="default" className="mr-1">{meetings.filter(m => isFuture(new Date(m.start_time))).length}</Badge>
-                  Upcoming
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <AdminMeetingsList
+          meetings={meetings}
+          allProfiles={allProfiles}
+          selectedUserFilter={selectedUserFilter}
+          onUserFilterChange={setSelectedUserFilter}
+        />
       )}
 
       <CreateMeetingDialog
