@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, Search, Sun, Moon } from 'lucide-react';
+import { Bell, Search, Sun, Moon, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -24,7 +24,12 @@ interface Notification {
   created_at: string;
 }
 
-export default function Header() {
+interface HeaderProps {
+  onMenuToggle?: () => void;
+  showMenuButton?: boolean;
+}
+
+export default function Header({ onMenuToggle, showMenuButton }: HeaderProps) {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -90,12 +95,22 @@ export default function Header() {
   };
 
   return (
-    <header className="h-16 border-b border-border bg-card px-6 flex items-center justify-between">
-      <div className="flex items-center gap-4 flex-1 max-w-md">
-        <div className="relative flex-1">
+    <header className="h-14 md:h-16 border-b border-border bg-card px-4 md:px-6 flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 flex-1">
+        {showMenuButton && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMenuToggle}
+            className="text-muted-foreground hover:text-foreground lg:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
+        <div className="relative flex-1 max-w-md hidden sm:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search projects, chats, meetings..."
+            placeholder="Search..."
             className="pl-10 bg-secondary border-0"
           />
         </div>

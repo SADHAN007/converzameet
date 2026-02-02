@@ -233,8 +233,8 @@ export default function AdminUsers() {
               transition={{ delay: index * 0.05 }}
             >
               <Card className="card-hover group">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-4">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <Avatar className="h-12 w-12 flex-shrink-0">
                         <AvatarFallback className="bg-primary text-primary-foreground">
@@ -265,7 +265,7 @@ export default function AdminUsers() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                       <Button
                         variant="outline"
                         size="sm"
@@ -273,9 +273,10 @@ export default function AdminUsers() {
                           setSelectedUser(profile);
                           setAssignDialogOpen(true);
                         }}
+                        className="text-xs sm:text-sm"
                       >
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Assign to Project
+                        <UserPlus className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Assign to Project</span>
                       </Button>
                       {profile.id !== user?.id && (
                         <DropdownMenu>
