@@ -7,13 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
-import { LayoutDashboard, Users, MessageSquare, Calendar, Lock, Mail, User } from 'lucide-react';
-
-const signUpSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  fullName: z.string().min(2, 'Name must be at least 2 characters'),
-});
+import { LayoutDashboard, Users, MessageSquare, Calendar, Lock, Mail } from 'lucide-react';
 
 const signInSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -21,14 +15,11 @@ const signInSchema = z.object({
 });
 
 export default function Auth() {
-  const { user, isLoading } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const { user, isLoading, signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const { signUp, signIn } = useAuth();
   const { toast } = useToast();
 
   if (isLoading) {
@@ -49,70 +40,33 @@ export default function Auth() {
     setSubmitting(true);
 
     try {
-      if (isSignUp) {
-        const validation = signUpSchema.safeParse({ email, password, fullName });
-        if (!validation.success) {
-          const fieldErrors: Record<string, string> = {};
-          validation.error.errors.forEach((err) => {
-            if (err.path[0]) {
-              fieldErrors[err.path[0] as string] = err.message;
-            }
-          });
-          setErrors(fieldErrors);
-          setSubmitting(false);
-          return;
-        }
-
-        const { error } = await signUp(email, password, fullName);
-        if (error) {
-          if (error.message.includes('already registered')) {
-            toast({
-              title: 'Account exists',
-              description: 'An account with this email already exists. Please sign in instead.',
-              variant: 'destructive',
-            });
-          } else {
-            toast({
-              title: 'Sign up failed',
-              description: error.message,
-              variant: 'destructive',
-            });
+      const validation = signInSchema.safeParse({ email, password });
+      if (!validation.success) {
+        const fieldErrors: Record<string, string> = {};
+        validation.error.errors.forEach((err) => {
+          if (err.path[0]) {
+            fieldErrors[err.path[0] as string] = err.message;
           }
+        });
+        setErrors(fieldErrors);
+        setSubmitting(false);
+        return;
+      }
+
+      const { error } = await signIn(email, password);
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          toast({
+            title: 'Invalid credentials',
+            description: 'Please check your email and password and try again.',
+            variant: 'destructive',
+          });
         } else {
           toast({
-            title: 'Check your email',
-            description: 'We sent you a confirmation link. Please verify your email to continue.',
+            title: 'Sign in failed',
+            description: error.message,
+            variant: 'destructive',
           });
-        }
-      } else {
-        const validation = signInSchema.safeParse({ email, password });
-        if (!validation.success) {
-          const fieldErrors: Record<string, string> = {};
-          validation.error.errors.forEach((err) => {
-            if (err.path[0]) {
-              fieldErrors[err.path[0] as string] = err.message;
-            }
-          });
-          setErrors(fieldErrors);
-          setSubmitting(false);
-          return;
-        }
-
-        const { error } = await signIn(email, password);
-        if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            toast({
-              title: 'Invalid credentials',
-              description: 'Please check your email and password and try again.',
-              variant: 'destructive',
-            });
-          } else {
-            toast({
-              title: 'Sign in failed',
-              description: error.message,
-              variant: 'destructive',
-            });
-          }
         }
       }
     } catch (error) {
@@ -194,37 +148,13 @@ export default function Auth() {
           </div>
 
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-foreground">
-              {isSignUp ? 'Create your account' : 'Welcome back'}
-            </h2>
+            <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
             <p className="text-muted-foreground mt-2">
-              {isSignUp
-                ? 'Join your team and start collaborating'
-                : 'Sign in to continue to your dashboard'}
+              Sign in to continue to your dashboard
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="pl-10 h-11"
-                    disabled={submitting}
-                  />
-                </div>
-                {errors.fullName && (
-                  <p className="text-sm text-destructive">{errors.fullName}</p>
-                )}
-              </div>
-            )}
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -252,7 +182,7 @@ export default function Auth() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder={isSignUp ? 'Create a password' : 'Enter your password'}
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 h-11"
@@ -272,27 +202,14 @@ export default function Auth() {
               {submitting ? (
                 <span className="flex items-center gap-2">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                  {isSignUp ? 'Creating account...' : 'Signing in...'}
+                  Signing in...
                 </span>
               ) : (
-                isSignUp ? 'Create Account' : 'Sign In'
+                'Sign In'
               )}
             </Button>
           </form>
 
-          <p className="text-center mt-6 text-muted-foreground">
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setErrors({});
-              }}
-              className="text-primary font-medium hover:underline"
-            >
-              {isSignUp ? 'Sign in' : 'Sign up'}
-            </button>
-          </p>
         </motion.div>
       </div>
     </div>
