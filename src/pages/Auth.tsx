@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { LayoutDashboard, Users, MessageSquare, Calendar, Lock, Mail } from 'lucide-react';
+import converzaLogo from '@/assets/converza-logo.png';
 
 const signInSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -99,10 +100,11 @@ export default function Auth() {
             transition={{ duration: 0.6 }}
           >
             <div className="flex items-center gap-3 mb-8">
-              <div className="h-12 w-12 rounded-xl bg-primary-foreground/20 flex items-center justify-center">
-                <LayoutDashboard className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <span className="text-2xl font-bold text-primary-foreground">ProjectHub</span>
+              <img 
+                src={converzaLogo} 
+                alt="Converza" 
+                className="h-14 object-contain"
+              />
             </div>
             
             <h1 className="text-4xl font-bold text-primary-foreground mb-4">
@@ -141,10 +143,11 @@ export default function Auth() {
           className="w-full max-w-md"
         >
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <LayoutDashboard className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">ProjectHub</span>
+            <img 
+              src={converzaLogo} 
+              alt="Converza" 
+              className="h-12 object-contain"
+            />
           </div>
 
           <div className="text-center mb-8">
