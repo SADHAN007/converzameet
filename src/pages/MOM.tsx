@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2 } from 'lucide-react';
+import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -103,6 +105,8 @@ export default function MOMPage() {
   });
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const pdfContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -371,6 +375,51 @@ export default function MOMPage() {
         ? prev.filter(id => id !== userId)
         : [...prev, userId]
     );
+  };
+
+  const handleExportPdf = async () => {
+    if (!selectedMom || !pdfContentRef.current) return;
+
+    setExporting(true);
+    try {
+      const element = pdfContentRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 10;
+
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.save(`${selectedMom.title.replace(/[^a-z0-9]/gi, '_')}_MOM.pdf`);
+
+      toast({
+        title: 'PDF exported',
+        description: 'Meeting minutes have been downloaded as PDF.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Export failed',
+        description: error.message || 'Failed to export PDF',
+        variant: 'destructive',
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getInitials = (name: string | null, email: string) => {
@@ -775,89 +824,111 @@ export default function MOMPage() {
                       {selectedMom.sent_at && ` • Sent ${format(new Date(selectedMom.sent_at), 'MMM d, h:mm a')}`}
                     </DialogDescription>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={handleExportPdf}
+                    disabled={exporting}
+                  >
+                    <Download className="h-4 w-4" />
+                    {exporting ? 'Exporting...' : 'Export PDF'}
+                  </Button>
                 </div>
               </DialogHeader>
               
-              {/* Participants Section */}
-              {selectedMom.participants && selectedMom.participants.length > 0 && (
-                <div className="border rounded-xl p-4 space-y-3 bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <Users className="h-4 w-4 text-primary" />
-                      Participants
-                    </h4>
-                    {(() => {
-                      const stats = getAgreementStats(selectedMom.participants);
-                      return (
-                        <Badge variant={stats.agreed === stats.total ? "default" : "secondary"}>
-                          {stats.agreed}/{stats.total} agreed
-                        </Badge>
-                      );
-                    })()}
-                  </div>
-                  <div className="grid gap-2">
-                    {selectedMom.participants.map((participant) => (
-                      <div 
-                        key={participant.user_id}
-                        className="flex items-center justify-between p-2.5 rounded-lg bg-background border"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar className={`h-9 w-9 ring-2 ${participant.has_agreed ? 'ring-green-500' : 'ring-transparent'}`}>
-                            <AvatarImage src={participant.profiles?.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {getInitials(participant.profiles?.full_name || null, participant.profiles?.email || '')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm font-medium">
-                              {participant.profiles?.full_name || participant.profiles?.email?.split('@')[0]}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {participant.profiles?.email}
-                            </p>
-                          </div>
-                        </div>
-                        {participant.has_agreed ? (
-                          <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-600">
-                            <Check className="h-3 w-3" />
-                            Agreed
-                            {participant.agreed_at && (
-                              <span className="text-xs opacity-75 ml-1">
-                                {format(new Date(participant.agreed_at), 'MMM d')}
-                              </span>
-                            )}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Pending
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Agree Button for Current User */}
-                  {selectedMom.is_sent && isUserParticipant(selectedMom) && !hasUserAgreed(selectedMom) && (
-                    <Button 
-                      className="w-full gap-2 mt-2" 
-                      onClick={() => handleAgree(selectedMom.id)}
-                    >
-                      <Check className="h-4 w-4" />
-                      I Agree to this MOM
-                    </Button>
-                  )}
+              {/* PDF Export Content */}
+              <div ref={pdfContentRef} className="bg-background p-4">
+                {/* Header for PDF */}
+                <div className="mb-4 pb-4 border-b">
+                  <h1 className="text-xl font-bold">{selectedMom.title}</h1>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedMom.projects?.name} • {format(new Date(selectedMom.created_at), 'MMMM d, yyyy')}
+                    {selectedMom.sent_at && ` • Sent ${format(new Date(selectedMom.sent_at), 'MMM d, h:mm a')}`}
+                  </p>
                 </div>
-              )}
 
-              {/* Content */}
-              <div className="py-4">
-                <Label className="text-sm text-muted-foreground mb-2 block">Content</Label>
-                <div 
-                  className="prose prose-sm max-w-none bg-muted/30 p-4 rounded-xl border"
-                  dangerouslySetInnerHTML={{ __html: selectedMom.content?.html || selectedMom.content?.text || '<p>No content</p>' }}
-                />
+                {/* Participants Section */}
+                {selectedMom.participants && selectedMom.participants.length > 0 && (
+                  <div className="border rounded-xl p-4 space-y-3 bg-muted/30 mb-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" />
+                        Participants
+                      </h4>
+                      {(() => {
+                        const stats = getAgreementStats(selectedMom.participants);
+                        return (
+                          <Badge variant={stats.agreed === stats.total ? "default" : "secondary"}>
+                            {stats.agreed}/{stats.total} agreed
+                          </Badge>
+                        );
+                      })()}
+                    </div>
+                    <div className="grid gap-2">
+                      {selectedMom.participants.map((participant) => (
+                        <div 
+                          key={participant.user_id}
+                          className="flex items-center justify-between p-2.5 rounded-lg bg-background border"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className={`h-9 w-9 ring-2 ${participant.has_agreed ? 'ring-green-500' : 'ring-transparent'}`}>
+                              <AvatarImage src={participant.profiles?.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {getInitials(participant.profiles?.full_name || null, participant.profiles?.email || '')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium">
+                                {participant.profiles?.full_name || participant.profiles?.email?.split('@')[0]}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {participant.profiles?.email}
+                              </p>
+                            </div>
+                          </div>
+                          {participant.has_agreed ? (
+                            <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-600">
+                              <Check className="h-3 w-3" />
+                              Agreed
+                              {participant.agreed_at && (
+                                <span className="text-xs opacity-75 ml-1">
+                                  {format(new Date(participant.agreed_at), 'MMM d')}
+                                </span>
+                              )}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Pending
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Content */}
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">Content</Label>
+                  <div 
+                    className="prose prose-sm max-w-none bg-muted/30 p-4 rounded-xl border"
+                    dangerouslySetInnerHTML={{ __html: selectedMom.content?.html || selectedMom.content?.text || '<p>No content</p>' }}
+                  />
+                </div>
               </div>
+              
+              {/* Agree Button for Current User - Outside PDF area */}
+              {selectedMom.is_sent && isUserParticipant(selectedMom) && !hasUserAgreed(selectedMom) && (
+                <Button 
+                  className="w-full gap-2" 
+                  onClick={() => handleAgree(selectedMom.id)}
+                >
+                  <Check className="h-4 w-4" />
+                  I Agree to this MOM
+                </Button>
+              )}
             </>
           )}
         </DialogContent>
