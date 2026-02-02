@@ -543,9 +543,9 @@ export default function CreateMeetingDialog({
       {renderStepIndicator()}
       <div className={cn('px-1', isMobile ? 'min-h-[400px]' : 'min-h-[350px]')}>
         <AnimatePresence mode="wait">
-          {currentStep === 0 && renderStep1Basics()}
-          {currentStep === 1 && renderStep2DateTime()}
-          {currentStep === 2 && renderStep3Participants()}
+          {currentStep === 0 && <div key="step1">{renderStep1Basics()}</div>}
+          {currentStep === 1 && <div key="step2">{renderStep2DateTime()}</div>}
+          {currentStep === 2 && <div key="step3">{renderStep3Participants()}</div>}
         </AnimatePresence>
       </div>
       {renderNavigationButtons()}
