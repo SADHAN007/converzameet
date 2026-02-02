@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Bell, Search, Sun, Moon, Menu } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Search, Sun, Moon, Menu, PhoneMissed } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,8 +12,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useMissedCalls } from '@/hooks/useMissedCalls';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Notification {
@@ -30,7 +33,9 @@ interface HeaderProps {
 }
 
 export default function Header({ onMenuToggle, showMenuButton }: HeaderProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const { missedCount } = useMissedCalls();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isDark, setIsDark] = useState(false);
@@ -117,6 +122,31 @@ export default function Header({ onMenuToggle, showMenuButton }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Missed Calls Badge */}
+        {missedCount > 0 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/calls?tab=missed')}
+                className="relative text-orange-500 hover:text-orange-600 hover:bg-orange-500/10"
+              >
+                <PhoneMissed className="h-5 w-5" />
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                >
+                  {missedCount > 9 ? '9+' : missedCount}
+                </Badge>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {missedCount} missed call{missedCount !== 1 ? 's' : ''}
+            </TooltipContent>
+          </Tooltip>
+        )}
+
         <Button
           variant="ghost"
           size="icon"

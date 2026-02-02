@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
+import { useMissedCalls } from '@/hooks/useMissedCalls';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import converzaLogo from '@/assets/converza-logo.png';
@@ -26,14 +28,12 @@ interface SidebarProps {
   isMobile?: boolean;
 }
 
-const mainNav = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/projects', icon: FolderKanban, label: 'Projects' },
-  { to: '/chat', icon: MessageSquare, label: 'Chat' },
-  { to: '/calendar', icon: Calendar, label: 'Calendar' },
-  { to: '/mom', icon: FileText, label: 'Minutes' },
-  { to: '/calls', icon: Phone, label: 'Calls' },
-];
+interface NavItemType {
+  to: string;
+  icon: typeof LayoutDashboard;
+  label: string;
+  badge?: number;
+}
 
 const adminNav = [
   { to: '/admin/users', icon: Users, label: 'Users' },
@@ -42,31 +42,63 @@ const adminNav = [
 export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps) {
   const location = useLocation();
   const { user, isAdmin, signOut } = useAuth();
+  const { missedCount } = useMissedCalls();
+
+  const mainNav: NavItemType[] = [
+    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/projects', icon: FolderKanban, label: 'Projects' },
+    { to: '/chat', icon: MessageSquare, label: 'Chat' },
+    { to: '/calendar', icon: Calendar, label: 'Calendar' },
+    { to: '/mom', icon: FileText, label: 'Minutes' },
+    { to: '/calls', icon: Phone, label: 'Calls', badge: missedCount },
+  ];
+
+  const adminNav: NavItemType[] = [
+    { to: '/admin/users', icon: Users, label: 'Users' },
+  ];
 
   const getInitials = (email: string) => {
     return email.slice(0, 2).toUpperCase();
   };
 
-  const NavItem = ({ to, icon: Icon, label }: { to: string; icon: typeof LayoutDashboard; label: string }) => {
+  const NavItem = ({ to, icon: Icon, label, badge }: NavItemType) => {
     const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
 
     const content = (
       <NavLink
         to={to}
         className={cn(
-          'nav-link',
+          'nav-link relative',
           isActive && 'active'
         )}
       >
-        <Icon className="h-5 w-5 flex-shrink-0" />
+        <div className="relative">
+          <Icon className="h-5 w-5 flex-shrink-0" />
+          {badge !== undefined && badge > 0 && collapsed && (
+            <Badge 
+              variant="destructive" 
+              className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px] font-bold"
+            >
+              {badge > 9 ? '9+' : badge}
+            </Badge>
+          )}
+        </div>
         {!collapsed && (
           <motion.span
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="truncate"
+            className="truncate flex-1"
           >
             {label}
           </motion.span>
+        )}
+        {!collapsed && badge !== undefined && badge > 0 && (
+          <Badge 
+            variant="destructive" 
+            className="h-5 min-w-5 px-1.5 flex items-center justify-center text-xs font-bold"
+          >
+            {badge > 99 ? '99+' : badge}
+          </Badge>
         )}
       </NavLink>
     );
@@ -76,7 +108,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
         <Tooltip>
           <TooltipTrigger asChild>{content}</TooltipTrigger>
           <TooltipContent side="right" sideOffset={10}>
-            {label}
+            {label} {badge !== undefined && badge > 0 && `(${badge} missed)`}
           </TooltipContent>
         </Tooltip>
       );
