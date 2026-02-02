@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import Auth from "./pages/Auth";
+import Install from "./pages/Install";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import Chat from "./pages/Chat";
@@ -26,6 +27,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/install" element={<Install />} />
             <Route element={<DashboardLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/projects" element={<Projects />} />
