@@ -13,31 +13,10 @@ import {
   Building2,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -54,8 +33,9 @@ import {
   startOfWeek,
   endOfWeek,
 } from 'date-fns';
-import RecurrenceOptions from '@/components/calendar/RecurrenceOptions';
 import CalendarSyncMenu from '@/components/calendar/CalendarSyncMenu';
+import CreateMeetingDialog from '@/components/calendar/CreateMeetingDialog';
+import MeetingResponseActions from '@/components/calendar/MeetingResponseActions';
 
 interface MeetingParticipant {
   id: string;
@@ -111,23 +91,6 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
-  const [newMeeting, setNewMeeting] = useState({
-    title: '',
-    description: '',
-    project_id: '',
-    date: '',
-    start_time: '',
-    end_time: '',
-    location: '',
-    meeting_link: '',
-    meeting_type: 'online' as 'online' | 'offline',
-    is_recurring: false,
-    recurrence_pattern: 'weekly',
-    recurrence_interval: 1,
-    recurrence_end_date: '',
-    recurrence_days: [] as string[],
-  });
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -201,7 +164,25 @@ export default function CalendarPage() {
     }
   };
 
-  const handleCreateMeeting = async () => {
+  const handleCreateMeeting = async (
+    newMeeting: {
+      title: string;
+      description: string;
+      project_id: string;
+      date: string;
+      start_time: string;
+      end_time: string;
+      location: string;
+      meeting_link: string;
+      meeting_type: 'online' | 'offline';
+      is_recurring: boolean;
+      recurrence_pattern: string;
+      recurrence_interval: number;
+      recurrence_end_date: string;
+      recurrence_days: string[];
+    },
+    selectedParticipants: string[]
+  ) => {
     if (!newMeeting.title.trim() || !newMeeting.project_id || !newMeeting.date || !newMeeting.start_time || !newMeeting.end_time) {
       toast({
         title: 'Missing fields',
@@ -239,53 +220,48 @@ export default function CalendarPage() {
 
       if (error) throw error;
 
-      // Add participants to the meeting (this will trigger notifications via DB trigger)
+      // Add participants to the meeting (is_attending null = pending response)
       if (data && selectedParticipants.length > 0) {
         const participantsToInsert = selectedParticipants.map(userId => ({
           meeting_id: data.id,
           user_id: userId,
-          is_attending: true,
+          is_attending: null, // Pending response
         }));
 
-        await supabase.from('meeting_participants').insert(participantsToInsert);
-      }
+        const { data: insertedParticipants } = await supabase
+          .from('meeting_participants')
+          .insert(participantsToInsert)
+          .select('id, user_id, is_attending');
 
-      if (data) {
-        const participantProfiles = selectedParticipants.map(userId => {
-          const p = allProfiles.find(prof => prof.id === userId);
-          return {
-            id: '',
-            user_id: userId,
-            is_attending: true,
-            profiles: p ? { full_name: p.full_name, email: p.email, avatar_url: p.avatar_url } : undefined
-          };
-        });
+        if (data) {
+          const participantProfiles = (insertedParticipants || []).map(ip => {
+            const p = allProfiles.find(prof => prof.id === ip.user_id);
+            return {
+              id: ip.id,
+              user_id: ip.user_id,
+              is_attending: ip.is_attending,
+              profiles: p ? { full_name: p.full_name, email: p.email, avatar_url: p.avatar_url } : undefined
+            };
+          });
 
+          setMeetings([...meetings, {
+            ...data,
+            status: data.status as 'scheduled' | 'completed' | 'cancelled',
+            meeting_type: (data.meeting_type as 'online' | 'offline') || 'online',
+            projects: data.projects as { name: string; color: string } | undefined,
+            participants: participantProfiles
+          }]);
+        }
+      } else if (data) {
         setMeetings([...meetings, {
           ...data,
           status: data.status as 'scheduled' | 'completed' | 'cancelled',
           meeting_type: (data.meeting_type as 'online' | 'offline') || 'online',
           projects: data.projects as { name: string; color: string } | undefined,
-          participants: participantProfiles
+          participants: []
         }]);
       }
-      setNewMeeting({
-        title: '',
-        description: '',
-        project_id: '',
-        date: '',
-        start_time: '',
-        end_time: '',
-        location: '',
-        meeting_link: '',
-        meeting_type: 'online',
-        is_recurring: false,
-        recurrence_pattern: 'weekly',
-        recurrence_interval: 1,
-        recurrence_end_date: '',
-        recurrence_days: [],
-      });
-      setSelectedParticipants([]);
+
       setCreateDialogOpen(false);
       toast({
         title: 'Meeting scheduled',
@@ -302,6 +278,20 @@ export default function CalendarPage() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleUpdateParticipantResponse = (meetingId: string, participantId: string, isAttending: boolean | null) => {
+    setMeetings(meetings.map(meeting => {
+      if (meeting.id === meetingId) {
+        return {
+          ...meeting,
+          participants: meeting.participants?.map(p => 
+            p.id === participantId ? { ...p, is_attending: isAttending } : p
+          )
+        };
+      }
+      return meeting;
+    }));
   };
 
   const monthStart = startOfMonth(currentDate);
@@ -336,214 +326,21 @@ export default function CalendarPage() {
           <h1 className="text-2xl font-bold">Calendar</h1>
           <p className="text-muted-foreground">Manage your meetings and schedule</p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Schedule Meeting
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Schedule New Meeting</DialogTitle>
-              <DialogDescription>
-                Add a new meeting to your project calendar.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="meeting-title">Title *</Label>
-                <Input
-                  id="meeting-title"
-                  placeholder="Meeting title"
-                  value={newMeeting.title}
-                  onChange={(e) => setNewMeeting({ ...newMeeting, title: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="meeting-project">Project *</Label>
-                <Select
-                  value={newMeeting.project_id}
-                  onValueChange={(value) => setNewMeeting({ ...newMeeting, project_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: project.color }}
-                          />
-                          {project.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-date">Date *</Label>
-                  <Input
-                    id="meeting-date"
-                    type="date"
-                    value={newMeeting.date}
-                    onChange={(e) => setNewMeeting({ ...newMeeting, date: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-start">Start *</Label>
-                  <Input
-                    id="meeting-start"
-                    type="time"
-                    value={newMeeting.start_time}
-                    onChange={(e) => setNewMeeting({ ...newMeeting, start_time: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-end">End *</Label>
-                  <Input
-                    id="meeting-end"
-                    type="time"
-                    value={newMeeting.end_time}
-                    onChange={(e) => setNewMeeting({ ...newMeeting, end_time: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="meeting-description">Description</Label>
-                <Textarea
-                  id="meeting-description"
-                  placeholder="Meeting agenda or notes"
-                  value={newMeeting.description}
-                  onChange={(e) => setNewMeeting({ ...newMeeting, description: e.target.value })}
-                  rows={2}
-                />
-              </div>
-
-              {/* Meeting Type */}
-              <div className="space-y-3">
-                <Label>Meeting Type *</Label>
-                <RadioGroup
-                  value={newMeeting.meeting_type}
-                  onValueChange={(value: 'online' | 'offline') => setNewMeeting({ ...newMeeting, meeting_type: value })}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="online" id="online" />
-                    <Label htmlFor="online" className="flex items-center gap-2 cursor-pointer">
-                      <Video className="h-4 w-4 text-primary" />
-                      Online
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="offline" id="offline" />
-                    <Label htmlFor="offline" className="flex items-center gap-2 cursor-pointer">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      Offline
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {/* Conditional fields based on meeting type */}
-              {newMeeting.meeting_type === 'online' ? (
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-link">Meeting Link</Label>
-                  <Input
-                    id="meeting-link"
-                    placeholder="Video call URL (e.g., https://meet.google.com/...)"
-                    value={newMeeting.meeting_link}
-                    onChange={(e) => setNewMeeting({ ...newMeeting, meeting_link: e.target.value })}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-location">Location *</Label>
-                  <Input
-                    id="meeting-location"
-                    placeholder="Room name or address"
-                    value={newMeeting.location}
-                    onChange={(e) => setNewMeeting({ ...newMeeting, location: e.target.value })}
-                  />
-                </div>
-              )}
-
-              {/* Invite Participants */}
-              <div className="space-y-3">
-                <Label className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Invite Participants
-                </Label>
-                <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto space-y-2">
-                  {allProfiles.filter(p => p.id !== user?.id).map((profile) => {
-                    const isSelected = selectedParticipants.includes(profile.id);
-                    return (
-                      <div 
-                        key={profile.id}
-                        className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted'}`}
-                        onClick={() => {
-                          setSelectedParticipants(prev => 
-                            prev.includes(profile.id) 
-                              ? prev.filter(id => id !== profile.id)
-                              : [...prev, profile.id]
-                          );
-                        }}
-                      >
-                        <Checkbox checked={isSelected} />
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={profile.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {profile.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || profile.email.slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {profile.full_name || profile.email.split('@')[0]}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {allProfiles.filter(p => p.id !== user?.id).length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No other users available</p>
-                  )}
-                </div>
-                {selectedParticipants.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {selectedParticipants.length} participant(s) will be notified
-                  </p>
-                )}
-              </div>
-              
-              <RecurrenceOptions
-                isRecurring={newMeeting.is_recurring}
-                onIsRecurringChange={(value) => setNewMeeting({ ...newMeeting, is_recurring: value })}
-                recurrencePattern={newMeeting.recurrence_pattern}
-                onRecurrencePatternChange={(value) => setNewMeeting({ ...newMeeting, recurrence_pattern: value })}
-                recurrenceInterval={newMeeting.recurrence_interval}
-                onRecurrenceIntervalChange={(value) => setNewMeeting({ ...newMeeting, recurrence_interval: value })}
-                recurrenceEndDate={newMeeting.recurrence_end_date}
-                onRecurrenceEndDateChange={(value) => setNewMeeting({ ...newMeeting, recurrence_end_date: value })}
-                recurrenceDays={newMeeting.recurrence_days}
-                onRecurrenceDaysChange={(value) => setNewMeeting({ ...newMeeting, recurrence_days: value })}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateMeeting} disabled={creating}>
-                {creating ? 'Scheduling...' : 'Schedule Meeting'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setCreateDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Schedule Meeting
+        </Button>
       </div>
+
+      <CreateMeetingDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        projects={projects}
+        profiles={allProfiles}
+        currentUserId={user?.id}
+        onCreateMeeting={handleCreateMeeting}
+        creating={creating}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar */}
@@ -700,6 +497,28 @@ export default function CalendarPage() {
                           </div>
                         )}
                         
+                        {/* Current user's response actions */}
+                        {(() => {
+                          const currentUserParticipant = meeting.participants?.find(p => p.user_id === user?.id);
+                          if (currentUserParticipant) {
+                            return (
+                              <div className="mt-2 p-2 rounded-lg bg-muted/50">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs text-muted-foreground">Your response:</span>
+                                  <MeetingResponseActions
+                                    meetingId={meeting.id}
+                                    participantId={currentUserParticipant.id}
+                                    isAttending={currentUserParticipant.is_attending}
+                                    onResponseUpdate={(isAttending) => handleUpdateParticipantResponse(meeting.id, currentUserParticipant.id, isAttending)}
+                                    compact
+                                  />
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+
                         {/* Participants */}
                         {meeting.participants && meeting.participants.length > 0 && (
                           <TooltipProvider>
@@ -709,16 +528,33 @@ export default function CalendarPage() {
                                 {meeting.participants.slice(0, 4).map((participant) => (
                                   <Tooltip key={participant.user_id}>
                                     <TooltipTrigger asChild>
-                                      <Avatar className="h-5 w-5 border border-background">
-                                        <AvatarImage src={participant.profiles?.avatar_url || undefined} />
-                                        <AvatarFallback className="text-[8px]">
-                                          {participant.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 
-                                           participant.profiles?.email?.slice(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                      </Avatar>
+                                      <div className="relative">
+                                        <Avatar className={`h-5 w-5 border-2 ${
+                                          participant.is_attending === true 
+                                            ? 'border-green-500' 
+                                            : participant.is_attending === false 
+                                            ? 'border-red-500' 
+                                            : 'border-yellow-500'
+                                        }`}>
+                                          <AvatarImage src={participant.profiles?.avatar_url || undefined} />
+                                          <AvatarFallback className="text-[8px]">
+                                            {participant.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 
+                                             participant.profiles?.email?.slice(0, 2).toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                      </div>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      {participant.profiles?.full_name || participant.profiles?.email?.split('@')[0]}
+                                      <div className="text-center">
+                                        <p>{participant.profiles?.full_name || participant.profiles?.email?.split('@')[0]}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {participant.is_attending === true 
+                                            ? '✓ Accepted' 
+                                            : participant.is_attending === false 
+                                            ? '✗ Declined' 
+                                            : '? Pending'}
+                                        </p>
+                                      </div>
                                     </TooltipContent>
                                   </Tooltip>
                                 ))}
