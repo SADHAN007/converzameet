@@ -146,6 +146,41 @@ export type Database = {
           },
         ]
       }
+      mom_participants: {
+        Row: {
+          agreed_at: string | null
+          created_at: string
+          has_agreed: boolean | null
+          id: string
+          mom_id: string
+          user_id: string
+        }
+        Insert: {
+          agreed_at?: string | null
+          created_at?: string
+          has_agreed?: boolean | null
+          id?: string
+          mom_id: string
+          user_id: string
+        }
+        Update: {
+          agreed_at?: string | null
+          created_at?: string
+          has_agreed?: boolean | null
+          id?: string
+          mom_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mom_participants_mom_id_fkey"
+            columns: ["mom_id"]
+            isOneToOne: false
+            referencedRelation: "moms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       moms: {
         Row: {
           content: Json | null
