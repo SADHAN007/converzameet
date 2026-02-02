@@ -88,6 +88,7 @@ export type Database = {
           is_recurring: boolean | null
           location: string | null
           meeting_link: string | null
+          meeting_type: Database["public"]["Enums"]["meeting_type"]
           project_id: string
           recurrence_days: string[] | null
           recurrence_end_date: string | null
@@ -107,6 +108,7 @@ export type Database = {
           is_recurring?: boolean | null
           location?: string | null
           meeting_link?: string | null
+          meeting_type?: Database["public"]["Enums"]["meeting_type"]
           project_id: string
           recurrence_days?: string[] | null
           recurrence_end_date?: string | null
@@ -126,6 +128,7 @@ export type Database = {
           is_recurring?: boolean | null
           location?: string | null
           meeting_link?: string | null
+          meeting_type?: Database["public"]["Enums"]["meeting_type"]
           project_id?: string
           recurrence_days?: string[] | null
           recurrence_end_date?: string | null
@@ -442,6 +445,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user" | "manager" | "client"
       meeting_status: "scheduled" | "completed" | "cancelled"
+      meeting_type: "online" | "offline"
       project_role: "owner" | "member" | "viewer"
     }
     CompositeTypes: {
@@ -572,6 +576,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user", "manager", "client"],
       meeting_status: ["scheduled", "completed", "cancelled"],
+      meeting_type: ["online", "offline"],
       project_role: ["owner", "member", "viewer"],
     },
   },

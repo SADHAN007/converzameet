@@ -9,7 +9,13 @@ import {
   ChevronRight,
   Video,
   Repeat,
+  Users,
+  Building2,
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +57,17 @@ import {
 import RecurrenceOptions from '@/components/calendar/RecurrenceOptions';
 import CalendarSyncMenu from '@/components/calendar/CalendarSyncMenu';
 
+interface MeetingParticipant {
+  id: string;
+  user_id: string;
+  is_attending: boolean;
+  profiles?: {
+    full_name: string | null;
+    email: string;
+    avatar_url: string | null;
+  };
+}
+
 interface Meeting {
   id: string;
   title: string;
@@ -59,6 +76,7 @@ interface Meeting {
   end_time: string;
   location: string | null;
   meeting_link: string | null;
+  meeting_type: 'online' | 'offline';
   project_id: string;
   status: 'scheduled' | 'completed' | 'cancelled';
   is_recurring: boolean;
@@ -67,12 +85,20 @@ interface Meeting {
   recurrence_end_date: string | null;
   recurrence_days: string[] | null;
   projects?: { name: string; color: string };
+  participants?: MeetingParticipant[];
 }
 
 interface Project {
   id: string;
   name: string;
   color: string;
+}
+
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string;
+  avatar_url: string | null;
 }
 
 export default function CalendarPage() {
@@ -84,6 +110,8 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [newMeeting, setNewMeeting] = useState({
     title: '',
     description: '',
@@ -93,6 +121,7 @@ export default function CalendarPage() {
     end_time: '',
     location: '',
     meeting_link: '',
+    meeting_type: 'online' as 'online' | 'offline',
     is_recurring: false,
     recurrence_pattern: 'weekly',
     recurrence_interval: 1,
@@ -112,7 +141,7 @@ export default function CalendarPage() {
       const start = startOfMonth(currentDate);
       const end = endOfMonth(currentDate);
 
-      const [meetingsRes, projectsRes] = await Promise.all([
+      const [meetingsRes, projectsRes, profilesRes] = await Promise.all([
         supabase
           .from('meetings')
           .select('*, projects(name, color)')
@@ -120,18 +149,48 @@ export default function CalendarPage() {
           .lte('start_time', end.toISOString())
           .order('start_time'),
         supabase.from('projects').select('id, name, color').order('name'),
+        supabase.from('profiles').select('id, full_name, email, avatar_url').order('full_name'),
       ]);
 
+      if (profilesRes.data) setAllProfiles(profilesRes.data);
+
       if (meetingsRes.data) {
+        // Fetch participants for all meetings
+        const meetingIds = meetingsRes.data.map(m => m.id);
+        const { data: participantsData } = await supabase
+          .from('meeting_participants')
+          .select('*')
+          .in('meeting_id', meetingIds);
+
+        const participantUserIds = participantsData?.map(p => p.user_id) || [];
+        let profilesMap = new Map<string, { full_name: string | null; email: string; avatar_url: string | null }>();
+        
+        if (participantUserIds.length > 0 && profilesRes.data) {
+          profilesMap = new Map(profilesRes.data.map(p => [p.id, { full_name: p.full_name, email: p.email, avatar_url: p.avatar_url }]));
+        }
+
+        const participantsByMeeting = new Map<string, MeetingParticipant[]>();
+        participantsData?.forEach(p => {
+          const existing = participantsByMeeting.get(p.meeting_id) || [];
+          existing.push({
+            ...p,
+            is_attending: p.is_attending ?? true,
+            profiles: profilesMap.get(p.user_id)
+          });
+          participantsByMeeting.set(p.meeting_id, existing);
+        });
+
         setMeetings(meetingsRes.data.map(m => ({
           ...m,
           status: m.status as 'scheduled' | 'completed' | 'cancelled',
+          meeting_type: (m.meeting_type as 'online' | 'offline') || 'online',
           is_recurring: m.is_recurring ?? false,
           recurrence_pattern: m.recurrence_pattern ?? null,
           recurrence_interval: m.recurrence_interval ?? null,
           recurrence_end_date: m.recurrence_end_date ?? null,
           recurrence_days: m.recurrence_days ?? null,
-          projects: m.projects as { name: string; color: string } | undefined
+          projects: m.projects as { name: string; color: string } | undefined,
+          participants: participantsByMeeting.get(m.id) || []
         })));
       }
       if (projectsRes.data) setProjects(projectsRes.data);
@@ -165,8 +224,9 @@ export default function CalendarPage() {
           project_id: newMeeting.project_id,
           start_time: startDateTime.toISOString(),
           end_time: endDateTime.toISOString(),
-          location: newMeeting.location.trim() || null,
-          meeting_link: newMeeting.meeting_link.trim() || null,
+          location: newMeeting.meeting_type === 'offline' ? newMeeting.location.trim() || null : null,
+          meeting_link: newMeeting.meeting_type === 'online' ? newMeeting.meeting_link.trim() || null : null,
+          meeting_type: newMeeting.meeting_type,
           created_by: user?.id,
           is_recurring: newMeeting.is_recurring,
           recurrence_pattern: newMeeting.is_recurring ? newMeeting.recurrence_pattern : null,
@@ -179,11 +239,34 @@ export default function CalendarPage() {
 
       if (error) throw error;
 
+      // Add participants to the meeting (this will trigger notifications via DB trigger)
+      if (data && selectedParticipants.length > 0) {
+        const participantsToInsert = selectedParticipants.map(userId => ({
+          meeting_id: data.id,
+          user_id: userId,
+          is_attending: true,
+        }));
+
+        await supabase.from('meeting_participants').insert(participantsToInsert);
+      }
+
       if (data) {
+        const participantProfiles = selectedParticipants.map(userId => {
+          const p = allProfiles.find(prof => prof.id === userId);
+          return {
+            id: '',
+            user_id: userId,
+            is_attending: true,
+            profiles: p ? { full_name: p.full_name, email: p.email, avatar_url: p.avatar_url } : undefined
+          };
+        });
+
         setMeetings([...meetings, {
           ...data,
           status: data.status as 'scheduled' | 'completed' | 'cancelled',
-          projects: data.projects as { name: string; color: string } | undefined
+          meeting_type: (data.meeting_type as 'online' | 'offline') || 'online',
+          projects: data.projects as { name: string; color: string } | undefined,
+          participants: participantProfiles
         }]);
       }
       setNewMeeting({
@@ -195,16 +278,20 @@ export default function CalendarPage() {
         end_time: '',
         location: '',
         meeting_link: '',
+        meeting_type: 'online',
         is_recurring: false,
         recurrence_pattern: 'weekly',
         recurrence_interval: 1,
         recurrence_end_date: '',
         recurrence_days: [],
       });
+      setSelectedParticipants([]);
       setCreateDialogOpen(false);
       toast({
         title: 'Meeting scheduled',
-        description: 'Your meeting has been added to the calendar',
+        description: selectedParticipants.length > 0 
+          ? `Your meeting has been added and ${selectedParticipants.length} participant(s) have been notified`
+          : 'Your meeting has been added to the calendar',
       });
     } catch (error: any) {
       toast({
@@ -336,25 +423,101 @@ export default function CalendarPage() {
                   rows={2}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-location">Location</Label>
-                  <Input
-                    id="meeting-location"
-                    placeholder="Room or address"
-                    value={newMeeting.location}
-                    onChange={(e) => setNewMeeting({ ...newMeeting, location: e.target.value })}
-                  />
-                </div>
+
+              {/* Meeting Type */}
+              <div className="space-y-3">
+                <Label>Meeting Type *</Label>
+                <RadioGroup
+                  value={newMeeting.meeting_type}
+                  onValueChange={(value: 'online' | 'offline') => setNewMeeting({ ...newMeeting, meeting_type: value })}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="online" id="online" />
+                    <Label htmlFor="online" className="flex items-center gap-2 cursor-pointer">
+                      <Video className="h-4 w-4 text-primary" />
+                      Online
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="offline" id="offline" />
+                    <Label htmlFor="offline" className="flex items-center gap-2 cursor-pointer">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      Offline
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Conditional fields based on meeting type */}
+              {newMeeting.meeting_type === 'online' ? (
                 <div className="space-y-2">
                   <Label htmlFor="meeting-link">Meeting Link</Label>
                   <Input
                     id="meeting-link"
-                    placeholder="Video call URL"
+                    placeholder="Video call URL (e.g., https://meet.google.com/...)"
                     value={newMeeting.meeting_link}
                     onChange={(e) => setNewMeeting({ ...newMeeting, meeting_link: e.target.value })}
                   />
                 </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="meeting-location">Location *</Label>
+                  <Input
+                    id="meeting-location"
+                    placeholder="Room name or address"
+                    value={newMeeting.location}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, location: e.target.value })}
+                  />
+                </div>
+              )}
+
+              {/* Invite Participants */}
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Invite Participants
+                </Label>
+                <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto space-y-2">
+                  {allProfiles.filter(p => p.id !== user?.id).map((profile) => {
+                    const isSelected = selectedParticipants.includes(profile.id);
+                    return (
+                      <div 
+                        key={profile.id}
+                        className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted'}`}
+                        onClick={() => {
+                          setSelectedParticipants(prev => 
+                            prev.includes(profile.id) 
+                              ? prev.filter(id => id !== profile.id)
+                              : [...prev, profile.id]
+                          );
+                        }}
+                      >
+                        <Checkbox checked={isSelected} />
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={profile.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {profile.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || profile.email.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {profile.full_name || profile.email.split('@')[0]}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {allProfiles.filter(p => p.id !== user?.id).length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No other users available</p>
+                  )}
+                </div>
+                {selectedParticipants.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {selectedParticipants.length} participant(s) will be notified
+                  </p>
+                )}
               </div>
               
               <RecurrenceOptions
@@ -497,11 +660,18 @@ export default function CalendarPage() {
                         style={{ backgroundColor: meeting.projects?.color || '#3b82f6' }}
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-sm">{meeting.title}</p>
                           {meeting.is_recurring && (
                             <Repeat className="h-3 w-3 text-muted-foreground" />
                           )}
+                          <Badge variant={meeting.meeting_type === 'online' ? 'default' : 'secondary'} className="text-[10px] h-5">
+                            {meeting.meeting_type === 'online' ? (
+                              <><Video className="h-2.5 w-2.5 mr-1" />Online</>
+                            ) : (
+                              <><Building2 className="h-2.5 w-2.5 mr-1" />Offline</>
+                            )}
+                          </Badge>
                         </div>
                         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
@@ -510,13 +680,13 @@ export default function CalendarPage() {
                             {format(new Date(meeting.end_time), 'h:mm a')}
                           </span>
                         </div>
-                        {meeting.location && (
+                        {meeting.location && meeting.meeting_type === 'offline' && (
                           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                             <MapPin className="h-3 w-3" />
                             <span>{meeting.location}</span>
                           </div>
                         )}
-                        {meeting.meeting_link && (
+                        {meeting.meeting_link && meeting.meeting_type === 'online' && (
                           <div className="flex items-center gap-2 mt-1">
                             <Video className="h-3 w-3 text-primary" />
                             <a
@@ -529,9 +699,44 @@ export default function CalendarPage() {
                             </a>
                           </div>
                         )}
+                        
+                        {/* Participants */}
+                        {meeting.participants && meeting.participants.length > 0 && (
+                          <TooltipProvider>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              <div className="flex -space-x-1.5">
+                                {meeting.participants.slice(0, 4).map((participant) => (
+                                  <Tooltip key={participant.user_id}>
+                                    <TooltipTrigger asChild>
+                                      <Avatar className="h-5 w-5 border border-background">
+                                        <AvatarImage src={participant.profiles?.avatar_url || undefined} />
+                                        <AvatarFallback className="text-[8px]">
+                                          {participant.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 
+                                           participant.profiles?.email?.slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {participant.profiles?.full_name || participant.profiles?.email?.split('@')[0]}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ))}
+                                {meeting.participants.length > 4 && (
+                                  <Avatar className="h-5 w-5 border border-background">
+                                    <AvatarFallback className="text-[8px] bg-muted">
+                                      +{meeting.participants.length - 4}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                )}
+                              </div>
+                            </div>
+                          </TooltipProvider>
+                        )}
+
                         <div className="flex items-center gap-2 mt-2">
                           {meeting.projects && (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="outline" className="text-xs">
                               {meeting.projects.name}
                             </Badge>
                           )}
