@@ -19,8 +19,8 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt'],
       manifest: {
-        name: 'ProjectHub - Enterprise Collaboration',
-        short_name: 'ProjectHub',
+        name: 'Converza - Enterprise Collaboration',
+        short_name: 'Converza',
         description: 'Enterprise project collaboration and management platform',
         theme_color: '#1e3a5f',
         background_color: '#f8fafc',

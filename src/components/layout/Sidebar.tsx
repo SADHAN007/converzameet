@@ -103,7 +103,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
               animate={{ opacity: 1 }}
               className="font-semibold text-sidebar-foreground text-lg"
             >
-              ProjectHub
+              Converza
             </motion.span>
           )}
         </div>
