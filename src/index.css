@@ -287,4 +287,80 @@
   .nav-link.active {
     @apply bg-sidebar-primary text-sidebar-primary-foreground;
   }
+
+  /* TipTap Rich Text Editor Styles */
+  .ProseMirror {
+    @apply outline-none min-h-[200px] p-4;
+  }
+
+  .ProseMirror p.is-editor-empty:first-child::before {
+    @apply text-muted-foreground pointer-events-none float-left h-0;
+    content: attr(data-placeholder);
+  }
+
+  .ProseMirror h1 {
+    @apply text-2xl font-bold mb-4;
+  }
+
+  .ProseMirror h2 {
+    @apply text-xl font-semibold mb-3;
+  }
+
+  .ProseMirror h3 {
+    @apply text-lg font-medium mb-2;
+  }
+
+  .ProseMirror ul {
+    @apply list-disc pl-6 mb-4;
+  }
+
+  .ProseMirror ol {
+    @apply list-decimal pl-6 mb-4;
+  }
+
+  .ProseMirror li {
+    @apply mb-1;
+  }
+
+  .ProseMirror table {
+    @apply border-collapse w-full mb-4 border border-border rounded-lg overflow-hidden;
+  }
+
+  .ProseMirror th {
+    @apply bg-muted font-semibold text-left p-2 border border-border;
+  }
+
+  .ProseMirror td {
+    @apply p-2 border border-border;
+  }
+
+  .ProseMirror th,
+  .ProseMirror td {
+    min-width: 100px;
+  }
+
+  .ProseMirror th.selectedCell,
+  .ProseMirror td.selectedCell {
+    @apply bg-primary/10;
+  }
+
+  .ProseMirror p {
+    @apply mb-2;
+  }
+
+  .ProseMirror strong {
+    @apply font-bold;
+  }
+
+  .ProseMirror em {
+    @apply italic;
+  }
+
+  .ProseMirror u {
+    @apply underline;
+  }
+
+  .ProseMirror blockquote {
+    @apply border-l-4 border-primary/50 pl-4 italic my-4;
+  }
 }
