@@ -42,6 +42,7 @@ import CalendarSyncMenu from '@/components/calendar/CalendarSyncMenu';
 import CreateMeetingDialog from '@/components/calendar/CreateMeetingDialog';
 import MeetingResponseActions from '@/components/calendar/MeetingResponseActions';
 import AdminMeetingsList from '@/components/calendar/AdminMeetingsList';
+import MeetingParticipantStatus from '@/components/calendar/MeetingParticipantStatus';
 
 interface MeetingParticipant {
   id: string;
@@ -571,8 +572,19 @@ export default function CalendarPage() {
                           return null;
                         })()}
 
-                        {/* Participants */}
+                        {/* Creator's Participant Status Panel */}
                         {meeting.participants && meeting.participants.length > 0 && (
+                          <MeetingParticipantStatus
+                            meetingId={meeting.id}
+                            meetingTitle={meeting.title}
+                            participants={meeting.participants}
+                            isCreator={meeting.created_by === user?.id}
+                            onParticipantUpdate={() => fetchData()}
+                          />
+                        )}
+
+                        {/* Participants (for non-creators - show simple avatar list) */}
+                        {meeting.participants && meeting.participants.length > 0 && meeting.created_by !== user?.id && (
                           <TooltipProvider>
                             <div className="flex items-center gap-2 mt-2">
                               <Users className="h-3 w-3 text-muted-foreground" />
