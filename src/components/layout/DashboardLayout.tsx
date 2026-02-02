@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ChatBot from '@/components/chat/ChatBot';
+import IncomingCallAlert from '@/components/call/IncomingCallAlert';
 
 export default function DashboardLayout() {
   const { user, isLoading } = useAuth();
@@ -64,6 +65,9 @@ export default function DashboardLayout() {
       
       {/* Floating ChatBot */}
       <ChatBot />
+      
+      {/* Global Incoming Call Alert */}
+      <IncomingCallAlert />
     </div>
   );
 }
