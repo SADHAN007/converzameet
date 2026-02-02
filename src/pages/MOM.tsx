@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, UserPlus } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -22,15 +22,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import RichTextEditor from '@/components/mom/RichTextEditor';
+import ParticipantSelector from '@/components/mom/ParticipantSelector';
 
 interface MOMParticipant {
   id: string;
@@ -52,6 +61,8 @@ interface MOM {
   updated_at: string;
   project_id: string;
   created_by: string | null;
+  is_sent: boolean;
+  sent_at: string | null;
   projects?: { name: string; color: string };
   profiles?: { full_name: string | null; email: string };
   participants?: MOMParticipant[];
@@ -81,14 +92,17 @@ export default function MOMPage() {
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
+  const [momToSend, setMomToSend] = useState<MOM | null>(null);
   const [selectedMom, setSelectedMom] = useState<MOM | null>(null);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [editorContent, setEditorContent] = useState('');
   const [newMom, setNewMom] = useState({
     title: '',
     project_id: '',
-    content: '',
   });
   const [creating, setCreating] = useState(false);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -110,14 +124,12 @@ export default function MOMPage() {
       if (profilesRes.data) setAllProfiles(profilesRes.data);
 
       if (momsRes.data) {
-        // Fetch participants for each MOM
         const momIds = momsRes.data.map(m => m.id);
         const { data: participantsData } = await supabase
           .from('mom_participants')
           .select('*')
           .in('mom_id', momIds);
 
-        // Create profiles map
         const creatorIds = momsRes.data.filter(m => m.created_by).map(m => m.created_by as string);
         const participantUserIds = participantsData?.map(p => p.user_id) || [];
         const allUserIds = [...new Set([...creatorIds, ...participantUserIds])];
@@ -135,7 +147,6 @@ export default function MOMPage() {
           }
         }
         
-        // Group participants by mom_id
         const participantsByMom = new Map<string, MOMParticipant[]>();
         participantsData?.forEach(p => {
           const existing = participantsByMom.get(p.mom_id) || [];
@@ -149,6 +160,8 @@ export default function MOMPage() {
         setMoms(momsRes.data.map(m => ({
           ...m,
           content: m.content as any,
+          is_sent: m.is_sent ?? false,
+          sent_at: m.sent_at ?? null,
           projects: m.projects as { name: string; color: string } | undefined,
           profiles: m.created_by ? profilesMap.get(m.created_by) : undefined,
           participants: participantsByMom.get(m.id) || []
@@ -179,39 +192,31 @@ export default function MOMPage() {
         .insert({
           title: newMom.title.trim(),
           project_id: newMom.project_id,
-          content: { text: newMom.content.trim() },
+          content: { html: editorContent },
           created_by: user?.id,
+          is_sent: false,
         })
         .select('*, projects(name, color)')
         .single();
 
       if (error) throw error;
 
-      // Add participants
       if (data && selectedParticipants.length > 0) {
         const participantsToInsert = selectedParticipants.map(userId => ({
           mom_id: data.id,
           user_id: userId,
         }));
 
-        const { error: participantsError } = await supabase
-          .from('mom_participants')
-          .insert(participantsToInsert);
-
-        if (participantsError) {
-          console.error('Error adding participants:', participantsError);
-        }
+        await supabase.from('mom_participants').insert(participantsToInsert);
       }
 
       if (data) {
-        // Get profile for current user
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name, email, avatar_url')
           .eq('id', user?.id)
           .maybeSingle();
 
-        // Get participant profiles
         const participantProfiles = selectedParticipants.map(userId => {
           const p = allProfiles.find(prof => prof.id === userId);
           return {
@@ -225,17 +230,21 @@ export default function MOMPage() {
 
         setMoms([{
           ...data,
+          is_sent: false,
+          sent_at: null,
           projects: data.projects as { name: string; color: string } | undefined,
           profiles: profile || undefined,
           participants: participantProfiles
         }, ...moms]);
       }
-      setNewMom({ title: '', project_id: '', content: '' });
+
+      setNewMom({ title: '', project_id: '' });
+      setEditorContent('');
       setSelectedParticipants([]);
       setCreateDialogOpen(false);
       toast({
         title: 'MOM created',
-        description: 'Meeting minutes have been saved and participants notified',
+        description: 'Meeting minutes saved as draft. Send it to notify participants.',
       });
     } catch (error: any) {
       toast({
@@ -245,6 +254,44 @@ export default function MOMPage() {
       });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleSendMom = async () => {
+    if (!momToSend) return;
+
+    setSending(true);
+    try {
+      const { error } = await supabase
+        .from('moms')
+        .update({ 
+          is_sent: true, 
+          sent_at: new Date().toISOString() 
+        })
+        .eq('id', momToSend.id);
+
+      if (error) throw error;
+
+      setMoms(moms.map(m => 
+        m.id === momToSend.id 
+          ? { ...m, is_sent: true, sent_at: new Date().toISOString() }
+          : m
+      ));
+
+      toast({
+        title: 'MOM sent!',
+        description: 'All participants have been notified and can now view this MOM.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send MOM',
+        variant: 'destructive',
+      });
+    } finally {
+      setSending(false);
+      setSendConfirmOpen(false);
+      setMomToSend(null);
     }
   };
 
@@ -280,7 +327,6 @@ export default function MOMPage() {
 
       if (error) throw error;
 
-      // Update local state
       setMoms(moms.map(m => {
         if (m.id === momId) {
           return {
@@ -295,7 +341,6 @@ export default function MOMPage() {
         return m;
       }));
 
-      // Update selected mom if open
       if (selectedMom?.id === momId) {
         setSelectedMom({
           ...selectedMom,
@@ -349,10 +394,19 @@ export default function MOMPage() {
     return { agreed, total: participants.length };
   };
 
+  const canViewMom = (mom: MOM) => {
+    // Creator can always view
+    if (mom.created_by === user?.id) return true;
+    // If sent, participants can view
+    if (mom.is_sent && isUserParticipant(mom)) return true;
+    return false;
+  };
+
   const filteredMoms = moms.filter(m => {
     const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesProject = selectedProject === 'all' || m.project_id === selectedProject;
-    return matchesSearch && matchesProject;
+    const canView = canViewMom(m);
+    return matchesSearch && matchesProject && canView;
   });
 
   if (loading) {
@@ -377,144 +431,94 @@ export default function MOMPage() {
         </div>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
               New MOM
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create Meeting Minutes</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                Create Meeting Minutes
+              </DialogTitle>
               <DialogDescription>
-                Document your meeting discussions and action items.
+                Document your meeting discussions, decisions, and action items.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="mom-title">Title *</Label>
-                <Input
-                  id="mom-title"
-                  placeholder="e.g., Sprint Planning - Week 12"
-                  value={newMom.title}
-                  onChange={(e) => setNewMom({ ...newMom, title: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="mom-project">Project *</Label>
-                <Select
-                  value={newMom.project_id}
-                  onValueChange={(value) => setNewMom({ ...newMom, project_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: project.color }}
-                          />
-                          {project.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Participants Selection */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Tag Participants
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  Select users who will need to acknowledge this MOM
-                </p>
-                <ScrollArea className="h-48 border rounded-md p-2">
-                  <div className="space-y-2">
-                    {allProfiles
-                      .filter(p => p.id !== user?.id)
-                      .map((profile) => (
-                      <div
-                        key={profile.id}
-                        className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                        onClick={() => toggleParticipant(profile.id)}
-                      >
-                        <Checkbox
-                          checked={selectedParticipants.includes(profile.id)}
-                          onCheckedChange={() => toggleParticipant(profile.id)}
-                        />
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={profile.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {getInitials(profile.full_name, profile.email)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {profile.full_name || profile.email.split('@')[0]}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {profile.email}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    {allProfiles.filter(p => p.id !== user?.id).length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        No other users available
-                      </p>
-                    )}
-                  </div>
-                </ScrollArea>
-                {selectedParticipants.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {selectedParticipants.map(id => {
-                      const profile = allProfiles.find(p => p.id === id);
-                      return profile ? (
-                        <Badge 
-                          key={id} 
-                          variant="secondary"
-                          className="gap-1"
-                        >
-                          {profile.full_name || profile.email.split('@')[0]}
-                          <X 
-                            className="h-3 w-3 cursor-pointer" 
-                            onClick={() => toggleParticipant(id)}
-                          />
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="mom-content">Content</Label>
-                <Textarea
-                  id="mom-content"
-                  placeholder="Write your meeting notes here...
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-4">
+              {/* Left column - Main content */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="mom-title">Title *</Label>
+                  <Input
+                    id="mom-title"
+                    placeholder="e.g., Sprint Planning - Week 12"
+                    value={newMom.title}
+                    onChange={(e) => setNewMom({ ...newMom, title: e.target.value })}
+                    className="text-lg"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mom-project">Project *</Label>
+                  <Select
+                    value={newMom.project_id}
+                    onValueChange={(value) => setNewMom({ ...newMom, project_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: project.color }}
+                            />
+                            {project.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Content</Label>
+                  <RichTextEditor
+                    content={editorContent}
+                    onChange={setEditorContent}
+                    placeholder="Start writing your meeting notes...
 
 • Discussion points
-• Decisions made
+• Decisions made  
 • Action items
 • Next steps"
-                  value={newMom.content}
-                  onChange={(e) => setNewMom({ ...newMom, content: e.target.value })}
-                  rows={10}
-                  className="font-mono text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Right column - Participants */}
+              <div className="lg:col-span-1">
+                <ParticipantSelector
+                  profiles={allProfiles}
+                  selectedIds={selectedParticipants}
+                  onToggle={toggleParticipant}
+                  currentUserId={user?.id}
                 />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateMom} disabled={creating}>
-                {creating ? 'Creating...' : 'Create MOM'}
+              <Button onClick={handleCreateMom} disabled={creating} className="gap-2">
+                {creating ? 'Creating...' : (
+                  <>
+                    <FileText className="h-4 w-4" />
+                    Save as Draft
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -568,157 +572,207 @@ export default function MOMPage() {
         </Card>
       ) : (
         <div className="grid gap-4">
-          {filteredMoms.map((mom, index) => {
-            const stats = getAgreementStats(mom.participants);
-            const canAgree = isUserParticipant(mom) && !hasUserAgreed(mom);
-            
-            return (
-              <motion.div
-                key={mom.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card className="card-hover group">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-4 flex-1 min-w-0">
-                        <div
-                          className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: mom.projects?.color || '#3b82f6' }}
-                        >
-                          <FileText className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-foreground truncate">{mom.title}</h3>
-                          <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-muted-foreground">
-                            {mom.projects && (
-                              <Badge variant="secondary">{mom.projects.name}</Badge>
-                            )}
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3.5 w-3.5" />
-                              <span>{format(new Date(mom.created_at), 'MMM d, yyyy')}</span>
+          <AnimatePresence>
+            {filteredMoms.map((mom, index) => {
+              const stats = getAgreementStats(mom.participants);
+              const canAgree = mom.is_sent && isUserParticipant(mom) && !hasUserAgreed(mom);
+              const isCreator = mom.created_by === user?.id;
+              
+              return (
+                <motion.div
+                  key={mom.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Card className="card-hover group overflow-hidden">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4 flex-1 min-w-0">
+                          <div
+                            className="h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+                            style={{ backgroundColor: mom.projects?.color || '#3b82f6' }}
+                          >
+                            <FileText className="h-6 w-6 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-foreground truncate">{mom.title}</h3>
+                              {/* Status Badge */}
+                              {mom.is_sent ? (
+                                <Badge variant="default" className="gap-1 text-xs">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Sent
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="gap-1 text-xs">
+                                  <Clock className="h-3 w-3" />
+                                  Draft
+                                </Badge>
+                              )}
                             </div>
-                            {mom.profiles && (
+                            <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-muted-foreground">
+                              {mom.projects && (
+                                <Badge variant="outline" className="font-normal">
+                                  {mom.projects.name}
+                                </Badge>
+                              )}
                               <div className="flex items-center gap-1">
-                                <User className="h-3.5 w-3.5" />
-                                <span>{mom.profiles.full_name || mom.profiles.email.split('@')[0]}</span>
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span>{format(new Date(mom.created_at), 'MMM d, yyyy')}</span>
+                              </div>
+                              {mom.profiles && (
+                                <div className="flex items-center gap-1">
+                                  <User className="h-3.5 w-3.5" />
+                                  <span>{mom.profiles.full_name || mom.profiles.email.split('@')[0]}</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Participants and Agreement Status */}
+                            {mom.participants && mom.participants.length > 0 && (
+                              <div className="flex items-center gap-3 mt-3">
+                                <TooltipProvider>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex -space-x-2">
+                                      {mom.participants.slice(0, 5).map((participant) => (
+                                        <Tooltip key={participant.user_id}>
+                                          <TooltipTrigger asChild>
+                                            <Avatar className={`h-7 w-7 border-2 transition-all ${participant.has_agreed ? 'border-green-500 ring-2 ring-green-500/20' : 'border-background'}`}>
+                                              <AvatarImage src={participant.profiles?.avatar_url || undefined} />
+                                              <AvatarFallback className="text-xs">
+                                                {getInitials(participant.profiles?.full_name || null, participant.profiles?.email || '')}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p className="flex items-center gap-1">
+                                              {participant.profiles?.full_name || participant.profiles?.email?.split('@')[0]}
+                                              {participant.has_agreed && <Check className="h-3 w-3 text-green-500" />}
+                                            </p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      ))}
+                                      {mom.participants.length > 5 && (
+                                        <Avatar className="h-7 w-7 border-2 border-background">
+                                          <AvatarFallback className="text-xs bg-muted">
+                                            +{mom.participants.length - 5}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                      )}
+                                    </div>
+                                    <Badge 
+                                      variant={stats.agreed === stats.total ? "default" : "outline"} 
+                                      className="text-xs gap-1"
+                                    >
+                                      <Check className="h-3 w-3" />
+                                      {stats.agreed}/{stats.total} agreed
+                                    </Badge>
+                                  </div>
+                                </TooltipProvider>
+                                
+                                {canAgree && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-7 text-xs gap-1 border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAgree(mom.id);
+                                    }}
+                                  >
+                                    <Check className="h-3 w-3" />
+                                    Agree
+                                  </Button>
+                                )}
                               </div>
                             )}
                           </div>
-                          
-                          {/* Participants and Agreement Status */}
-                          {mom.participants && mom.participants.length > 0 && (
-                            <div className="flex items-center gap-3 mt-2">
-                              <TooltipProvider>
-                                <div className="flex items-center gap-2">
-                                  <div className="flex -space-x-2">
-                                    {mom.participants.slice(0, 5).map((participant) => (
-                                      <Tooltip key={participant.user_id}>
-                                        <TooltipTrigger asChild>
-                                          <Avatar className={`h-6 w-6 border-2 ${participant.has_agreed ? 'border-green-500' : 'border-background'}`}>
-                                            <AvatarImage src={participant.profiles?.avatar_url || undefined} />
-                                            <AvatarFallback className="text-xs">
-                                              {getInitials(participant.profiles?.full_name || null, participant.profiles?.email || '')}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>
-                                            {participant.profiles?.full_name || participant.profiles?.email?.split('@')[0]}
-                                            {participant.has_agreed && ' ✓ Agreed'}
-                                          </p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    ))}
-                                    {mom.participants.length > 5 && (
-                                      <Avatar className="h-6 w-6 border-2 border-background">
-                                        <AvatarFallback className="text-xs bg-muted">
-                                          +{mom.participants.length - 5}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                    )}
-                                  </div>
-                                  <Badge variant={stats.agreed === stats.total ? "default" : "outline"} className="text-xs gap-1 shrink-0">
-                                    <Check className="h-3 w-3" />
-                                    {stats.agreed}/{stats.total}
-                                  </Badge>
-                                </div>
-                              </TooltipProvider>
-                              
-                              {canAgree && (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="h-7 text-xs gap-1 text-green-600 border-green-600 hover:bg-green-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAgree(mom.id);
-                                  }}
-                                >
-                                  <Check className="h-3 w-3" />
-                                  Agree
-                                </Button>
-                              )}
-                            </div>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {/* Send button for drafts */}
+                          {isCreator && !mom.is_sent && mom.participants && mom.participants.length > 0 && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => {
+                                setMomToSend(mom);
+                                setSendConfirmOpen(true);
+                              }}
+                            >
+                              <Send className="h-4 w-4" />
+                              Send
+                            </Button>
                           )}
-                          
-                          {mom.content?.text && (
-                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                              {mom.content.text}
-                            </p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedMom(mom);
+                              setViewDialogOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {isCreator && (
+                            <>
+                              <Button variant="ghost" size="icon">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteMom(mom.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSelectedMom(mom);
-                            setViewDialogOpen(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteMom(mom.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
 
       {/* View dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           {selectedMom && (
             <>
               <DialogHeader>
                 <div className="flex items-center gap-3">
                   <div
-                    className="h-8 w-8 rounded-lg flex items-center justify-center"
+                    className="h-10 w-10 rounded-xl flex items-center justify-center shadow-sm"
                     style={{ backgroundColor: selectedMom.projects?.color || '#3b82f6' }}
                   >
-                    <FileText className="h-4 w-4 text-white" />
+                    <FileText className="h-5 w-5 text-white" />
                   </div>
-                  <div>
-                    <DialogTitle>{selectedMom.title}</DialogTitle>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <DialogTitle>{selectedMom.title}</DialogTitle>
+                      {selectedMom.is_sent ? (
+                        <Badge variant="default" className="gap-1 text-xs">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Sent
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="gap-1 text-xs">
+                          <Clock className="h-3 w-3" />
+                          Draft
+                        </Badge>
+                      )}
+                    </div>
                     <DialogDescription>
                       {selectedMom.projects?.name} • {format(new Date(selectedMom.created_at), 'MMMM d, yyyy')}
+                      {selectedMom.sent_at && ` • Sent ${format(new Date(selectedMom.sent_at), 'MMM d, h:mm a')}`}
                     </DialogDescription>
                   </div>
                 </div>
@@ -726,10 +780,10 @@ export default function MOMPage() {
               
               {/* Participants Section */}
               {selectedMom.participants && selectedMom.participants.length > 0 && (
-                <div className="border rounded-lg p-4 space-y-3">
+                <div className="border rounded-xl p-4 space-y-3 bg-muted/30">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium flex items-center gap-2">
-                      <Users className="h-4 w-4" />
+                      <Users className="h-4 w-4 text-primary" />
                       Participants
                     </h4>
                     {(() => {
@@ -741,14 +795,14 @@ export default function MOMPage() {
                       );
                     })()}
                   </div>
-                  <div className="space-y-2">
+                  <div className="grid gap-2">
                     {selectedMom.participants.map((participant) => (
                       <div 
                         key={participant.user_id}
-                        className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+                        className="flex items-center justify-between p-2.5 rounded-lg bg-background border"
                       >
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
+                          <Avatar className={`h-9 w-9 ring-2 ${participant.has_agreed ? 'ring-green-500' : 'ring-transparent'}`}>
                             <AvatarImage src={participant.profiles?.avatar_url || undefined} />
                             <AvatarFallback className="text-xs">
                               {getInitials(participant.profiles?.full_name || null, participant.profiles?.email || '')}
@@ -764,17 +818,18 @@ export default function MOMPage() {
                           </div>
                         </div>
                         {participant.has_agreed ? (
-                          <Badge variant="default" className="gap-1 [&]:bg-green-600 [&]:hover:bg-green-600/90">
+                          <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-600">
                             <Check className="h-3 w-3" />
                             Agreed
                             {participant.agreed_at && (
-                              <span className="text-xs opacity-75">
-                                • {format(new Date(participant.agreed_at), 'MMM d')}
+                              <span className="text-xs opacity-75 ml-1">
+                                {format(new Date(participant.agreed_at), 'MMM d')}
                               </span>
                             )}
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-muted-foreground">
+                            <Clock className="h-3 w-3 mr-1" />
                             Pending
                           </Badge>
                         )}
@@ -783,9 +838,9 @@ export default function MOMPage() {
                   </div>
                   
                   {/* Agree Button for Current User */}
-                  {isUserParticipant(selectedMom) && !hasUserAgreed(selectedMom) && (
+                  {selectedMom.is_sent && isUserParticipant(selectedMom) && !hasUserAgreed(selectedMom) && (
                     <Button 
-                      className="w-full gap-2" 
+                      className="w-full gap-2 mt-2" 
                       onClick={() => handleAgree(selectedMom.id)}
                     >
                       <Check className="h-4 w-4" />
@@ -795,17 +850,60 @@ export default function MOMPage() {
                 </div>
               )}
 
+              {/* Content */}
               <div className="py-4">
-                <div className="prose prose-sm max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans text-sm text-foreground bg-muted p-4 rounded-lg">
-                    {selectedMom.content?.text || 'No content'}
-                  </pre>
-                </div>
+                <Label className="text-sm text-muted-foreground mb-2 block">Content</Label>
+                <div 
+                  className="prose prose-sm max-w-none bg-muted/30 p-4 rounded-xl border"
+                  dangerouslySetInnerHTML={{ __html: selectedMom.content?.html || selectedMom.content?.text || '<p>No content</p>' }}
+                />
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Send Confirmation Dialog */}
+      <AlertDialog open={sendConfirmOpen} onOpenChange={setSendConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-primary" />
+              Send MOM to Participants?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will notify all {momToSend?.participants?.length || 0} participant(s) and make this MOM visible to them. 
+              They will be able to view and acknowledge the meeting minutes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {momToSend?.participants && momToSend.participants.length > 0 && (
+            <div className="flex flex-wrap gap-2 py-2">
+              {momToSend.participants.map((p) => (
+                <Badge key={p.user_id} variant="secondary" className="gap-1">
+                  <Avatar className="h-4 w-4">
+                    <AvatarImage src={p.profiles?.avatar_url || undefined} />
+                    <AvatarFallback className="text-[8px]">
+                      {getInitials(p.profiles?.full_name || null, p.profiles?.email || '')}
+                    </AvatarFallback>
+                  </Avatar>
+                  {p.profiles?.full_name || p.profiles?.email?.split('@')[0]}
+                </Badge>
+              ))}
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSendMom} disabled={sending} className="gap-2">
+              {sending ? 'Sending...' : (
+                <>
+                  <Send className="h-4 w-4" />
+                  Send MOM
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

@@ -187,7 +187,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_sent: boolean | null
           project_id: string
+          sent_at: string | null
           title: string
           updated_at: string
         }
@@ -196,7 +198,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_sent?: boolean | null
           project_id: string
+          sent_at?: string | null
           title: string
           updated_at?: string
         }
@@ -205,7 +209,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_sent?: boolean | null
           project_id?: string
+          sent_at?: string | null
           title?: string
           updated_at?: string
         }
