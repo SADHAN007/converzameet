@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Phone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ChatBot from '@/components/chat/ChatBot';
 import IncomingCallAlert from '@/components/call/IncomingCallAlert';
+import StartCallDialog from '@/components/call/StartCallDialog';
 
 export default function DashboardLayout() {
   const { user, isLoading } = useAuth();
@@ -62,6 +65,21 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+      
+      {/* Floating Start Call Button */}
+      <StartCallDialog
+        trigger={
+          <motion.button
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="fixed bottom-24 right-6 z-40 h-14 w-14 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:shadow-xl hover:shadow-emerald-500/40 transition-shadow"
+          >
+            <Phone className="h-6 w-6" />
+          </motion.button>
+        }
+      />
       
       {/* Floating ChatBot */}
       <ChatBot />

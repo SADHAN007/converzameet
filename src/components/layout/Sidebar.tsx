@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Calendar,
   FileText,
+  Phone,
   Users,
   LogOut,
   ChevronLeft,
@@ -31,6 +32,7 @@ const mainNav = [
   { to: '/chat', icon: MessageSquare, label: 'Chat' },
   { to: '/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/mom', icon: FileText, label: 'Minutes' },
+  { to: '/calls', icon: Phone, label: 'Calls' },
 ];
 
 const adminNav = [
