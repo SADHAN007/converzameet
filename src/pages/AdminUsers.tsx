@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Users, Search, MoreVertical, Mail, Shield, ShieldCheck, UserPlus, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,12 +36,21 @@ import { useToast } from '@/hooks/use-toast';
 import { Navigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
+type AppRole = 'admin' | 'manager' | 'user' | 'client';
+
+const ROLE_CONFIG: Record<AppRole, { label: string; color: string; icon: typeof ShieldCheck }> = {
+  admin: { label: 'Admin', color: 'bg-red-500/10 text-red-600', icon: ShieldCheck },
+  manager: { label: 'Manager', color: 'bg-blue-500/10 text-blue-600', icon: Shield },
+  user: { label: 'User', color: 'bg-green-500/10 text-green-600', icon: Users },
+  client: { label: 'Client', color: 'bg-purple-500/10 text-purple-600', icon: UserPlus },
+};
+
 interface Profile {
   id: string;
   email: string;
   full_name: string | null;
   created_at: string;
-  is_admin?: boolean;
+  role?: AppRole;
 }
 
 interface Project {
@@ -67,7 +76,7 @@ export default function AdminUsers() {
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newFullName, setNewFullName] = useState('');
-  const [makeAdmin, setMakeAdmin] = useState(false);
+  const [newRole, setNewRole] = useState<AppRole>('user');
   const [showPassword, setShowPassword] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -82,14 +91,14 @@ export default function AdminUsers() {
       const [profilesRes, projectsRes, rolesRes] = await Promise.all([
         supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('projects').select('id, name, color').order('name'),
-        supabase.from('user_roles').select('user_id, role').eq('role', 'admin'),
+        supabase.from('user_roles').select('user_id, role'),
       ]);
 
       if (profilesRes.data && rolesRes.data) {
-        const adminIds = new Set(rolesRes.data.map(r => r.user_id));
+        const roleMap = new Map(rolesRes.data.map(r => [r.user_id, r.role as AppRole]));
         setProfiles(profilesRes.data.map(p => ({
           ...p,
-          is_admin: adminIds.has(p.id)
+          role: roleMap.get(p.id) || 'user'
         })));
       }
       if (projectsRes.data) setProjects(projectsRes.data);
@@ -151,7 +160,7 @@ export default function AdminUsers() {
           email: newEmail,
           password: newPassword,
           fullName: newFullName || newEmail.split('@')[0],
-          makeAdmin,
+          role: newRole,
         },
       });
 
@@ -160,14 +169,14 @@ export default function AdminUsers() {
 
       toast({
         title: 'User created',
-        description: `${newEmail} has been created${makeAdmin ? ' as admin' : ''}`,
+        description: `${newEmail} has been created as ${newRole}`,
       });
 
       setCreateDialogOpen(false);
       setNewEmail('');
       setNewPassword('');
       setNewFullName('');
-      setMakeAdmin(false);
+      setNewRole('user');
       fetchData();
     } catch (error: any) {
       toast({
@@ -180,23 +189,19 @@ export default function AdminUsers() {
     }
   };
 
-  const handleToggleAdmin = async (userId: string, currentlyAdmin: boolean) => {
+  const handleChangeRole = async (userId: string, newRole: AppRole) => {
     try {
-      if (currentlyAdmin) {
-        await supabase.from('user_roles').delete().eq('user_id', userId).eq('role', 'admin');
-      } else {
-        await supabase.from('user_roles').insert({ user_id: userId, role: 'admin' });
-      }
+      // Delete existing role and insert new one
+      await supabase.from('user_roles').delete().eq('user_id', userId);
+      await supabase.from('user_roles').insert({ user_id: userId, role: newRole });
 
       setProfiles(profiles.map(p => 
-        p.id === userId ? { ...p, is_admin: !currentlyAdmin } : p
+        p.id === userId ? { ...p, role: newRole } : p
       ));
 
       toast({
-        title: currentlyAdmin ? 'Admin removed' : 'Admin granted',
-        description: currentlyAdmin 
-          ? 'User no longer has admin privileges' 
-          : 'User now has admin privileges',
+        title: 'Role updated',
+        description: `User role changed to ${ROLE_CONFIG[newRole].label}`,
       });
     } catch (error: any) {
       toast({
@@ -297,14 +302,14 @@ export default function AdminUsers() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-foreground truncate">
                             {profile.full_name || profile.email.split('@')[0]}
                           </h3>
-                          {profile.is_admin && (
-                            <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
-                              <ShieldCheck className="h-3 w-3 mr-1" />
-                              Admin
+                          {profile.role && (
+                            <Badge className={ROLE_CONFIG[profile.role].color}>
+                              {React.createElement(ROLE_CONFIG[profile.role].icon, { className: "h-3 w-3 mr-1" })}
+                              {ROLE_CONFIG[profile.role].label}
                             </Badge>
                           )}
                           {profile.id === user?.id && (
@@ -341,19 +346,26 @@ export default function AdminUsers() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleToggleAdmin(profile.id, !!profile.is_admin)}>
-                              {profile.is_admin ? (
-                                <>
-                                  <Shield className="h-4 w-4 mr-2" />
-                                  Remove Admin
-                                </>
-                              ) : (
-                                <>
-                                  <ShieldCheck className="h-4 w-4 mr-2" />
-                                  Make Admin
-                                </>
-                              )}
-                            </DropdownMenuItem>
+                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                              Change Role
+                            </div>
+                            <DropdownMenuSeparator />
+                            {(Object.keys(ROLE_CONFIG) as AppRole[]).map((role) => {
+                              const config = ROLE_CONFIG[role];
+                              const isCurrentRole = profile.role === role;
+                              return (
+                                <DropdownMenuItem 
+                                  key={role}
+                                  onClick={() => !isCurrentRole && handleChangeRole(profile.id, role)}
+                                  disabled={isCurrentRole}
+                                  className={isCurrentRole ? 'bg-accent' : ''}
+                                >
+                                  {React.createElement(config.icon, { className: "h-4 w-4 mr-2" })}
+                                  {config.label}
+                                  {isCurrentRole && <span className="ml-auto text-xs text-muted-foreground">Current</span>}
+                                </DropdownMenuItem>
+                              );
+                            })}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
@@ -466,18 +478,23 @@ export default function AdminUsers() {
                 </Button>
               </div>
             </div>
-            <div className="flex items-center space-x-2 pt-2">
-              <input
-                type="checkbox"
-                id="makeAdmin"
-                checked={makeAdmin}
-                onChange={(e) => setMakeAdmin(e.target.checked)}
-                className="h-4 w-4 rounded border-input"
-              />
-              <Label htmlFor="makeAdmin" className="flex items-center gap-2 cursor-pointer">
-                <ShieldCheck className="h-4 w-4 text-primary" />
-                Make this user an admin
-              </Label>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ROLE_CONFIG) as AppRole[]).map((role) => (
+                    <SelectItem key={role} value={role}>
+                      <div className="flex items-center gap-2">
+                        {React.createElement(ROLE_CONFIG[role].icon, { className: "h-4 w-4" })}
+                        {ROLE_CONFIG[role].label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">

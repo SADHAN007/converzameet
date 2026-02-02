@@ -5,13 +5,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const VALID_ROLES = ["admin", "manager", "user", "client"];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { email, password, fullName, makeAdmin } = await req.json();
+    const { email, password, fullName, role = "user" } = await req.json();
 
     if (!email || !password) {
       return new Response(
@@ -19,6 +21,9 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Validate role
+    const validRole = VALID_ROLES.includes(role) ? role : "user";
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -35,6 +40,7 @@ Deno.serve(async (req) => {
     });
 
     if (authError) {
+      console.error("Auth error:", authError);
       return new Response(
         JSON.stringify({ error: authError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -44,30 +50,41 @@ Deno.serve(async (req) => {
     const userId = authData.user.id;
 
     // Create profile
-    await supabaseAdmin.from("profiles").upsert({
+    const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
       id: userId,
       email,
       full_name: fullName || email.split("@")[0],
     });
 
-    // Make admin if requested
-    if (makeAdmin) {
-      await supabaseAdmin.from("user_roles").upsert({
-        user_id: userId,
-        role: "admin",
-      });
+    if (profileError) {
+      console.error("Profile error:", profileError);
     }
+
+    // Set the user role (delete any existing role first to avoid conflicts)
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
+    
+    const { error: roleError } = await supabaseAdmin.from("user_roles").insert({
+      user_id: userId,
+      role: validRole,
+    });
+
+    if (roleError) {
+      console.error("Role error:", roleError);
+    }
+
+    console.log(`User created: ${email} with role: ${validRole}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         user: { id: userId, email },
-        isAdmin: makeAdmin 
+        role: validRole 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Create user error:", message);
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

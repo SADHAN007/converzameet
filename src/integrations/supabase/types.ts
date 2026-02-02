@@ -228,27 +228,48 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          city: string | null
+          company_name: string | null
           created_at: string
           email: string
           full_name: string | null
           id: string
+          job_title: string | null
+          phone: string | null
+          state: string | null
+          street_address: string | null
           updated_at: string
+          zip_code: string | null
         }
         Insert: {
           avatar_url?: string | null
+          city?: string | null
+          company_name?: string | null
           created_at?: string
           email: string
           full_name?: string | null
           id: string
+          job_title?: string | null
+          phone?: string | null
+          state?: string | null
+          street_address?: string | null
           updated_at?: string
+          zip_code?: string | null
         }
         Update: {
           avatar_url?: string | null
+          city?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
+          job_title?: string | null
+          phone?: string | null
+          state?: string | null
+          street_address?: string | null
           updated_at?: string
+          zip_code?: string | null
         }
         Relationships: []
       }
@@ -378,7 +399,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "manager" | "client"
       meeting_status: "scheduled" | "completed" | "cancelled"
       project_role: "owner" | "member" | "viewer"
     }
@@ -508,7 +529,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "manager", "client"],
       meeting_status: ["scheduled", "completed", "cancelled"],
       project_role: ["owner", "member", "viewer"],
     },
