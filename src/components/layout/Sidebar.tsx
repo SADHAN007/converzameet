@@ -21,6 +21,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobile?: boolean;
 }
 
 const mainNav = [
@@ -35,7 +36,7 @@ const adminNav = [
   { to: '/admin/users', icon: Users, label: 'Users' },
 ];
 
-export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps) {
   const location = useLocation();
   const { user, isAdmin, signOut } = useAuth();
 
