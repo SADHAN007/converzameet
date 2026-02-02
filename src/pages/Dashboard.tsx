@@ -20,6 +20,7 @@ import ActivityChart from '@/components/dashboard/ActivityChart';
 import ProjectProgress from '@/components/dashboard/ProjectProgress';
 import MeetingTimeline from '@/components/dashboard/MeetingTimeline';
 import QuickActions from '@/components/dashboard/QuickActions';
+import PWAInstallBanner from '@/components/dashboard/PWAInstallBanner';
 
 interface Project {
   id: string;
@@ -143,6 +144,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-8">
+      {/* PWA Install Banner */}
+      <PWAInstallBanner />
+
       {/* Welcome section */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
