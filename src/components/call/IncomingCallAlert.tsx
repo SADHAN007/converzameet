@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, PhoneOff, X, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -21,10 +21,99 @@ interface CallRequest {
   };
 }
 
+// Create ringtone using Web Audio API
+const createRingtone = (audioContext: AudioContext) => {
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  oscillator.type = 'sine';
+  oscillator.frequency.value = 440; // A4 note
+  gainNode.gain.value = 0;
+  
+  return { oscillator, gainNode };
+};
+
 export default function IncomingCallAlert() {
   const { toast } = useToast();
   const [incomingCall, setIncomingCall] = useState<CallRequest | null>(null);
   const [responding, setResponding] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const oscillatorRef = useRef<OscillatorNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const ringtoneIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Ringtone pattern: ring for 1s, silence for 0.5s
+  const startRingtone = () => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
+      }
+      
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      const { oscillator, gainNode } = createRingtone(ctx);
+      oscillatorRef.current = oscillator;
+      gainNodeRef.current = gainNode;
+      
+      oscillator.start();
+      
+      let isRinging = true;
+      
+      // Initial ring
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+      
+      // Create ring pattern
+      ringtoneIntervalRef.current = setInterval(() => {
+        if (!gainNodeRef.current || !audioContextRef.current) return;
+        
+        const now = audioContextRef.current.currentTime;
+        if (isRinging) {
+          // Fade out
+          gainNodeRef.current.gain.setTargetAtTime(0, now, 0.1);
+        } else {
+          // Ring with two-tone pattern
+          gainNodeRef.current.gain.setTargetAtTime(0.3, now, 0.05);
+          if (oscillatorRef.current) {
+            // Alternate between two frequencies for classic ring
+            oscillatorRef.current.frequency.setValueAtTime(
+              oscillatorRef.current.frequency.value === 440 ? 480 : 440,
+              now
+            );
+          }
+        }
+        isRinging = !isRinging;
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error playing ringtone:', error);
+    }
+  };
+
+  const stopRingtone = () => {
+    if (ringtoneIntervalRef.current) {
+      clearInterval(ringtoneIntervalRef.current);
+      ringtoneIntervalRef.current = null;
+    }
+    
+    if (oscillatorRef.current) {
+      try {
+        oscillatorRef.current.stop();
+        oscillatorRef.current.disconnect();
+      } catch {}
+      oscillatorRef.current = null;
+    }
+    
+    if (gainNodeRef.current) {
+      gainNodeRef.current.disconnect();
+      gainNodeRef.current = null;
+    }
+  };
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -92,21 +181,26 @@ export default function IncomingCallAlert() {
         ...call,
         caller_profile: callerProfile || undefined,
       });
-
-      // Play notification sound (if available)
-      try {
-        const audio = new Audio('/notification.mp3');
-        audio.volume = 0.5;
-        audio.play().catch(() => {});
-      } catch {}
     };
 
     setupSubscription();
 
     return () => {
       channel?.unsubscribe();
+      stopRingtone();
     };
   }, []);
+
+  // Play/stop ringtone when call state changes
+  useEffect(() => {
+    if (incomingCall) {
+      startRingtone();
+    } else {
+      stopRingtone();
+    }
+    
+    return () => stopRingtone();
+  }, [incomingCall]);
 
   // Auto-dismiss expired calls
   useEffect(() => {
