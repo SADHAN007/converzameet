@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Users, Search, MoreVertical, Mail, Shield, ShieldCheck, UserPlus, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Plus, Users, Search, MoreVertical, Mail, Shield, ShieldCheck, UserPlus, Eye, EyeOff, Loader2, LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,11 +38,23 @@ import { format } from 'date-fns';
 
 type AppRole = 'admin' | 'manager' | 'user' | 'client';
 
-const ROLE_CONFIG: Record<AppRole, { label: string; color: string; icon: typeof ShieldCheck }> = {
+interface RoleConfig {
+  label: string;
+  color: string;
+  icon: LucideIcon;
+}
+
+const ROLE_CONFIG: Record<AppRole, RoleConfig> = {
   admin: { label: 'Admin', color: 'bg-red-500/10 text-red-600', icon: ShieldCheck },
   manager: { label: 'Manager', color: 'bg-blue-500/10 text-blue-600', icon: Shield },
   user: { label: 'User', color: 'bg-green-500/10 text-green-600', icon: Users },
   client: { label: 'Client', color: 'bg-purple-500/10 text-purple-600', icon: UserPlus },
+};
+
+// Helper component to render role icon
+const RoleIcon = ({ role, className }: { role: AppRole; className?: string }) => {
+  const IconComponent = ROLE_CONFIG[role].icon;
+  return <IconComponent className={className} />;
 };
 
 interface Profile {
@@ -308,7 +320,7 @@ export default function AdminUsers() {
                           </h3>
                           {profile.role && (
                             <Badge className={ROLE_CONFIG[profile.role].color}>
-                              {React.createElement(ROLE_CONFIG[profile.role].icon, { className: "h-3 w-3 mr-1" })}
+                              <RoleIcon role={profile.role} className="h-3 w-3 mr-1" />
                               {ROLE_CONFIG[profile.role].label}
                             </Badge>
                           )}
@@ -360,7 +372,7 @@ export default function AdminUsers() {
                                   disabled={isCurrentRole}
                                   className={isCurrentRole ? 'bg-accent' : ''}
                                 >
-                                  {React.createElement(config.icon, { className: "h-4 w-4 mr-2" })}
+                                  <RoleIcon role={role} className="h-4 w-4 mr-2" />
                                   {config.label}
                                   {isCurrentRole && <span className="ml-auto text-xs text-muted-foreground">Current</span>}
                                 </DropdownMenuItem>
@@ -488,7 +500,7 @@ export default function AdminUsers() {
                   {(Object.keys(ROLE_CONFIG) as AppRole[]).map((role) => (
                     <SelectItem key={role} value={role}>
                       <div className="flex items-center gap-2">
-                        {React.createElement(ROLE_CONFIG[role].icon, { className: "h-4 w-4" })}
+                        <RoleIcon role={role} className="h-4 w-4" />
                         {ROLE_CONFIG[role].label}
                       </div>
                     </SelectItem>
