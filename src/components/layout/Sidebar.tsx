@@ -8,9 +8,7 @@ import {
   Calendar,
   FileText,
   Users,
-  Settings,
   LogOut,
-  Bell,
   ChevronLeft,
   UserCircle,
 } from 'lucide-react';
@@ -18,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import converzaLogo from '@/assets/converza-logo.png';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -94,9 +93,11 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
       {/* Header */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0">
-            <LayoutDashboard className="h-5 w-5 text-sidebar-primary-foreground" />
-          </div>
+          <img 
+            src={converzaLogo} 
+            alt="Converza" 
+            className="h-9 w-9 rounded-lg flex-shrink-0 object-contain"
+          />
           {!collapsed && (
             <motion.span
               initial={{ opacity: 0 }}
