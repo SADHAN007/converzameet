@@ -8,6 +8,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Phone,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -17,9 +18,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import CallButton from '@/components/call/CallButton';
 
 interface Participant {
   id: string;
@@ -158,6 +161,31 @@ export default function MeetingParticipantStatus({
       </div>
       <div className="flex items-center gap-2">
         <StatusBadge status={status} />
+        
+        {/* Call button */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <CallButton
+                  recipient={{
+                    id: participant.user_id,
+                    full_name: participant.profiles?.full_name || null,
+                    email: participant.profiles?.email || '',
+                    avatar_url: participant.profiles?.avatar_url || null,
+                  }}
+                  meetingId={meetingId}
+                  variant="icon"
+                  className="h-6 w-6"
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Call {participant.profiles?.full_name || 'participant'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
         {status === 'pending' && (
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
