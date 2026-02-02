@@ -5,11 +5,10 @@ import {
   Plus,
   Clock,
   MapPin,
-  Link as LinkIcon,
-  Users,
   ChevronLeft,
   ChevronRight,
   Video,
+  Repeat,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,6 +48,8 @@ import {
   startOfWeek,
   endOfWeek,
 } from 'date-fns';
+import RecurrenceOptions from '@/components/calendar/RecurrenceOptions';
+import CalendarSyncMenu from '@/components/calendar/CalendarSyncMenu';
 
 interface Meeting {
   id: string;
@@ -60,6 +61,11 @@ interface Meeting {
   meeting_link: string | null;
   project_id: string;
   status: 'scheduled' | 'completed' | 'cancelled';
+  is_recurring: boolean;
+  recurrence_pattern: string | null;
+  recurrence_interval: number | null;
+  recurrence_end_date: string | null;
+  recurrence_days: string[] | null;
   projects?: { name: string; color: string };
 }
 
@@ -87,6 +93,11 @@ export default function CalendarPage() {
     end_time: '',
     location: '',
     meeting_link: '',
+    is_recurring: false,
+    recurrence_pattern: 'weekly',
+    recurrence_interval: 1,
+    recurrence_end_date: '',
+    recurrence_days: [] as string[],
   });
   const [creating, setCreating] = useState(false);
 
@@ -115,6 +126,11 @@ export default function CalendarPage() {
         setMeetings(meetingsRes.data.map(m => ({
           ...m,
           status: m.status as 'scheduled' | 'completed' | 'cancelled',
+          is_recurring: m.is_recurring ?? false,
+          recurrence_pattern: m.recurrence_pattern ?? null,
+          recurrence_interval: m.recurrence_interval ?? null,
+          recurrence_end_date: m.recurrence_end_date ?? null,
+          recurrence_days: m.recurrence_days ?? null,
           projects: m.projects as { name: string; color: string } | undefined
         })));
       }
@@ -152,6 +168,11 @@ export default function CalendarPage() {
           location: newMeeting.location.trim() || null,
           meeting_link: newMeeting.meeting_link.trim() || null,
           created_by: user?.id,
+          is_recurring: newMeeting.is_recurring,
+          recurrence_pattern: newMeeting.is_recurring ? newMeeting.recurrence_pattern : null,
+          recurrence_interval: newMeeting.is_recurring ? newMeeting.recurrence_interval : null,
+          recurrence_end_date: newMeeting.is_recurring && newMeeting.recurrence_end_date ? newMeeting.recurrence_end_date : null,
+          recurrence_days: newMeeting.is_recurring && newMeeting.recurrence_pattern === 'weekly' ? newMeeting.recurrence_days : null,
         })
         .select('*, projects(name, color)')
         .single();
@@ -174,6 +195,11 @@ export default function CalendarPage() {
         end_time: '',
         location: '',
         meeting_link: '',
+        is_recurring: false,
+        recurrence_pattern: 'weekly',
+        recurrence_interval: 1,
+        recurrence_end_date: '',
+        recurrence_days: [],
       });
       setCreateDialogOpen(false);
       toast({
@@ -330,6 +356,19 @@ export default function CalendarPage() {
                   />
                 </div>
               </div>
+              
+              <RecurrenceOptions
+                isRecurring={newMeeting.is_recurring}
+                onIsRecurringChange={(value) => setNewMeeting({ ...newMeeting, is_recurring: value })}
+                recurrencePattern={newMeeting.recurrence_pattern}
+                onRecurrencePatternChange={(value) => setNewMeeting({ ...newMeeting, recurrence_pattern: value })}
+                recurrenceInterval={newMeeting.recurrence_interval}
+                onRecurrenceIntervalChange={(value) => setNewMeeting({ ...newMeeting, recurrence_interval: value })}
+                recurrenceEndDate={newMeeting.recurrence_end_date}
+                onRecurrenceEndDateChange={(value) => setNewMeeting({ ...newMeeting, recurrence_end_date: value })}
+                recurrenceDays={newMeeting.recurrence_days}
+                onRecurrenceDaysChange={(value) => setNewMeeting({ ...newMeeting, recurrence_days: value })}
+              />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
@@ -458,7 +497,12 @@ export default function CalendarPage() {
                         style={{ backgroundColor: meeting.projects?.color || '#3b82f6' }}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{meeting.title}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{meeting.title}</p>
+                          {meeting.is_recurring && (
+                            <Repeat className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           <span>
@@ -485,11 +529,14 @@ export default function CalendarPage() {
                             </a>
                           </div>
                         )}
-                        {meeting.projects && (
-                          <Badge variant="secondary" className="mt-2 text-xs">
-                            {meeting.projects.name}
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-2 mt-2">
+                          {meeting.projects && (
+                            <Badge variant="secondary" className="text-xs">
+                              {meeting.projects.name}
+                            </Badge>
+                          )}
+                          <CalendarSyncMenu meeting={meeting} size="icon" />
+                        </div>
                       </div>
                     </div>
                   </div>
