@@ -92,22 +92,14 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
     >
       {/* Header */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <img 
-            src={converzaLogo} 
-            alt="Converza" 
-            className="h-9 w-9 rounded-lg flex-shrink-0 object-contain"
-          />
-          {!collapsed && (
-            <motion.span
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="font-semibold text-sidebar-foreground text-lg"
-            >
-              Converza
-            </motion.span>
+        <img 
+          src={converzaLogo} 
+          alt="Converza" 
+          className={cn(
+            "object-contain transition-all duration-200",
+            collapsed ? "h-9 w-9" : "h-10"
           )}
-        </div>
+        />
         <Button
           variant="ghost"
           size="icon"
