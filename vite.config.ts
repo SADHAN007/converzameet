@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt'],
+      workbox: {
+        maximumFileSizeToCacheInBytes: 3145728, // 3 MiB
+      },
       manifest: {
         name: 'Converza - Enterprise Collaboration',
         short_name: 'Converza',
