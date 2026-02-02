@@ -12,6 +12,7 @@ import Chat from "./pages/Chat";
 import CalendarPage from "./pages/Calendar";
 import MOMPage from "./pages/MOM";
 import AdminUsers from "./pages/AdminUsers";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/mom" element={<MOMPage />} />
               <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/profile" element={<Profile />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
