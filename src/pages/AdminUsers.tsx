@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Users, Search, MoreVertical, Mail, Shield, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
+import { Plus, Users, Search, MoreVertical, Mail, Shield, ShieldCheck, UserPlus, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,6 +61,15 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [assigning, setAssigning] = useState(false);
+  
+  // Create user state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newFullName, setNewFullName] = useState('');
+  const [makeAdmin, setMakeAdmin] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (isAdmin) {
@@ -132,6 +141,45 @@ export default function AdminUsers() {
     }
   };
 
+  const handleCreateUser = async () => {
+    if (!newEmail || !newPassword) return;
+
+    setCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: newEmail,
+          password: newPassword,
+          fullName: newFullName || newEmail.split('@')[0],
+          makeAdmin,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: 'User created',
+        description: `${newEmail} has been created${makeAdmin ? ' as admin' : ''}`,
+      });
+
+      setCreateDialogOpen(false);
+      setNewEmail('');
+      setNewPassword('');
+      setNewFullName('');
+      setMakeAdmin(false);
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create user',
+        variant: 'destructive',
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const handleToggleAdmin = async (userId: string, currentlyAdmin: boolean) => {
     try {
       if (currentlyAdmin) {
@@ -195,6 +243,13 @@ export default function AdminUsers() {
           <h1 className="text-2xl font-bold">User Management</h1>
           <p className="text-muted-foreground">Manage users and their project assignments</p>
         </div>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Create User</span>
+            <span className="sm:hidden">Create</span>
+          </Button>
+        </motion.div>
       </div>
 
       {/* Search */}
@@ -347,6 +402,104 @@ export default function AdminUsers() {
             </Button>
             <Button onClick={handleAssignToProject} disabled={!selectedProjectId || assigning}>
               {assigning ? 'Assigning...' : 'Assign'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create user dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Create New User
+            </DialogTitle>
+            <DialogDescription>
+              Add a new user to the system. They can log in immediately after creation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                placeholder="John Doe"
+                value={newFullName}
+                onChange={(e) => setNewFullName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="user@example.com"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password *</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 pt-2">
+              <input
+                type="checkbox"
+                id="makeAdmin"
+                checked={makeAdmin}
+                onChange={(e) => setMakeAdmin(e.target.checked)}
+                className="h-4 w-4 rounded border-input"
+              />
+              <Label htmlFor="makeAdmin" className="flex items-center gap-2 cursor-pointer">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                Make this user an admin
+              </Label>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateUser} 
+              disabled={!newEmail || !newPassword || creating}
+              className="w-full sm:w-auto gap-2"
+            >
+              {creating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Create User
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
