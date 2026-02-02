@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2, Download } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2, Download, AlertCircle, Table2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import jsPDF from 'jspdf';
@@ -36,6 +36,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -92,6 +101,8 @@ export default function MOMPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<string>('cards');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
@@ -451,11 +462,31 @@ export default function MOMPage() {
     return false;
   };
 
+  const getMomApprovalStatus = (mom: MOM) => {
+    if (!mom.is_sent) return 'draft';
+    if (!mom.participants || mom.participants.length === 0) return 'sent';
+    const allAgreed = mom.participants.every(p => p.has_agreed);
+    if (allAgreed) return 'approved';
+    return 'pending';
+  };
+
+  const getPendingParticipants = (mom: MOM) => {
+    return mom.participants?.filter(p => !p.has_agreed) || [];
+  };
+
   const filteredMoms = moms.filter(m => {
     const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesProject = selectedProject === 'all' || m.project_id === selectedProject;
     const canView = canViewMom(m);
-    return matchesSearch && matchesProject && canView;
+    
+    // Status filter
+    let matchesStatus = true;
+    if (statusFilter !== 'all') {
+      const status = getMomApprovalStatus(m);
+      matchesStatus = status === statusFilter;
+    }
+    
+    return matchesSearch && matchesProject && canView && matchesStatus;
   });
 
   if (loading) {
@@ -575,7 +606,7 @@ export default function MOMPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -586,7 +617,7 @@ export default function MOMPage() {
           />
         </div>
         <Select value={selectedProject} onValueChange={setSelectedProject}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by project" />
           </SelectTrigger>
           <SelectContent>
@@ -604,192 +635,412 @@ export default function MOMPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="draft">
+              <div className="flex items-center gap-2">
+                <Clock className="h-3 w-3" />
+                Draft
+              </div>
+            </SelectItem>
+            <SelectItem value="pending">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-3 w-3 text-amber-500" />
+                Pending Approval
+              </div>
+            </SelectItem>
+            <SelectItem value="approved">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                Approved
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* MOM list */}
-      {filteredMoms.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-16 w-16 text-muted-foreground/50 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No meeting minutes found</h3>
-            <p className="text-muted-foreground text-center max-w-sm">
-              {searchQuery || selectedProject !== 'all'
-                ? 'Try adjusting your filters'
-                : 'Create your first MOM to document meeting discussions'}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          <AnimatePresence>
-            {filteredMoms.map((mom, index) => {
-              const stats = getAgreementStats(mom.participants);
-              const canAgree = mom.is_sent && isUserParticipant(mom) && !hasUserAgreed(mom);
-              const isCreator = mom.created_by === user?.id;
-              
-              return (
-                <motion.div
-                  key={mom.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Card className="card-hover group overflow-hidden">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-4 flex-1 min-w-0">
-                          <div
-                            className="h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
-                            style={{ backgroundColor: mom.projects?.color || '#3b82f6' }}
-                          >
-                            <FileText className="h-6 w-6 text-white" />
+      {/* Tabs for view toggle */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="cards" className="gap-2">
+            <FileText className="h-4 w-4" />
+            Cards
+          </TabsTrigger>
+          <TabsTrigger value="table" className="gap-2">
+            <Table2 className="h-4 w-4" />
+            Status Table
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Card View */}
+        <TabsContent value="cards" className="space-y-4">
+          {filteredMoms.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <FileText className="h-16 w-16 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No meeting minutes found</h3>
+                <p className="text-muted-foreground text-center max-w-sm">
+                  {searchQuery || selectedProject !== 'all' || statusFilter !== 'all'
+                    ? 'Try adjusting your filters'
+                    : 'Create your first MOM to document meeting discussions'}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              <AnimatePresence>
+                {filteredMoms.map((mom, index) => {
+                  const stats = getAgreementStats(mom.participants);
+                  const canAgree = mom.is_sent && isUserParticipant(mom) && !hasUserAgreed(mom);
+                  const isCreator = mom.created_by === user?.id;
+                  const approvalStatus = getMomApprovalStatus(mom);
+                  
+                  return (
+                    <motion.div
+                      key={mom.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card className="card-hover group overflow-hidden">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-4 flex-1 min-w-0">
+                              <div
+                                className="h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+                                style={{ backgroundColor: mom.projects?.color || '#3b82f6' }}
+                              >
+                                <FileText className="h-6 w-6 text-white" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold text-foreground truncate">{mom.title}</h3>
+                                  {/* Status Badge */}
+                                  {approvalStatus === 'approved' ? (
+                                    <Badge className="gap-1 text-xs bg-green-600 hover:bg-green-600">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Approved
+                                    </Badge>
+                                  ) : approvalStatus === 'pending' ? (
+                                    <Badge variant="outline" className="gap-1 text-xs border-amber-500 text-amber-600">
+                                      <AlertCircle className="h-3 w-3" />
+                                      Pending
+                                    </Badge>
+                                  ) : mom.is_sent ? (
+                                    <Badge variant="default" className="gap-1 text-xs">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Sent
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="gap-1 text-xs">
+                                      <Clock className="h-3 w-3" />
+                                      Draft
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-muted-foreground">
+                                  {mom.projects && (
+                                    <Badge variant="outline" className="font-normal">
+                                      {mom.projects.name}
+                                    </Badge>
+                                  )}
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    <span>{format(new Date(mom.created_at), 'MMM d, yyyy')}</span>
+                                  </div>
+                                  {mom.profiles && (
+                                    <div className="flex items-center gap-1">
+                                      <User className="h-3.5 w-3.5" />
+                                      <span>{mom.profiles.full_name || mom.profiles.email.split('@')[0]}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* Participants and Agreement Status */}
+                                {mom.participants && mom.participants.length > 0 && (
+                                  <div className="flex items-center gap-3 mt-3">
+                                    <TooltipProvider>
+                                      <div className="flex items-center gap-2">
+                                        <div className="flex -space-x-2">
+                                          {mom.participants.slice(0, 5).map((participant) => (
+                                            <Tooltip key={participant.user_id}>
+                                              <TooltipTrigger asChild>
+                                                <Avatar className={`h-7 w-7 border-2 transition-all ${participant.has_agreed ? 'border-green-500 ring-2 ring-green-500/20' : 'border-background'}`}>
+                                                  <AvatarImage src={participant.profiles?.avatar_url || undefined} />
+                                                  <AvatarFallback className="text-xs">
+                                                    {getInitials(participant.profiles?.full_name || null, participant.profiles?.email || '')}
+                                                  </AvatarFallback>
+                                                </Avatar>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                <p className="flex items-center gap-1">
+                                                  {participant.profiles?.full_name || participant.profiles?.email?.split('@')[0]}
+                                                  {participant.has_agreed && <Check className="h-3 w-3 text-green-500" />}
+                                                </p>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          ))}
+                                          {mom.participants.length > 5 && (
+                                            <Avatar className="h-7 w-7 border-2 border-background">
+                                              <AvatarFallback className="text-xs bg-muted">
+                                                +{mom.participants.length - 5}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                          )}
+                                        </div>
+                                        <Badge 
+                                          variant={stats.agreed === stats.total ? "default" : "outline"} 
+                                          className="text-xs gap-1"
+                                        >
+                                          <Check className="h-3 w-3" />
+                                          {stats.agreed}/{stats.total} agreed
+                                        </Badge>
+                                      </div>
+                                    </TooltipProvider>
+                                    
+                                    {canAgree && (
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="h-7 text-xs gap-1 border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleAgree(mom.id);
+                                        }}
+                                      >
+                                        <Check className="h-3 w-3" />
+                                        Agree
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {/* Send button for drafts */}
+                              {isCreator && !mom.is_sent && mom.participants && mom.participants.length > 0 && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="gap-1"
+                                  onClick={() => {
+                                    setMomToSend(mom);
+                                    setSendConfirmOpen(true);
+                                  }}
+                                >
+                                  <Send className="h-4 w-4" />
+                                  Send
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedMom(mom);
+                                  setViewDialogOpen(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {isCreator && (
+                                <>
+                                  <Button variant="ghost" size="icon">
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => handleDeleteMom(mom.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-semibold text-foreground truncate">{mom.title}</h3>
-                              {/* Status Badge */}
-                              {mom.is_sent ? (
-                                <Badge variant="default" className="gap-1 text-xs">
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Table View - Status Overview */}
+        <TabsContent value="table">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Table2 className="h-5 w-5" />
+                MOM Status Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {filteredMoms.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="text-muted-foreground">No meeting minutes found</p>
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>MOM Title</TableHead>
+                        <TableHead>Project</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Approval</TableHead>
+                        <TableHead>Pending From</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredMoms.map((mom) => {
+                        const stats = getAgreementStats(mom.participants);
+                        const approvalStatus = getMomApprovalStatus(mom);
+                        const pendingParticipants = getPendingParticipants(mom);
+                        const isCreator = mom.created_by === user?.id;
+                        
+                        return (
+                          <TableRow key={mom.id}>
+                            <TableCell className="font-medium max-w-[200px] truncate">
+                              {mom.title}
+                            </TableCell>
+                            <TableCell>
+                              {mom.projects && (
+                                <Badge variant="outline" className="gap-1">
+                                  <div
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: mom.projects.color }}
+                                  />
+                                  {mom.projects.name}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {format(new Date(mom.created_at), 'MMM d, yyyy')}
+                            </TableCell>
+                            <TableCell>
+                              {approvalStatus === 'approved' ? (
+                                <Badge className="bg-green-600 hover:bg-green-600 gap-1">
                                   <CheckCircle2 className="h-3 w-3" />
+                                  Approved
+                                </Badge>
+                              ) : approvalStatus === 'pending' ? (
+                                <Badge variant="outline" className="border-amber-500 text-amber-600 gap-1">
+                                  <AlertCircle className="h-3 w-3" />
+                                  Pending
+                                </Badge>
+                              ) : mom.is_sent ? (
+                                <Badge variant="default" className="gap-1">
+                                  <Send className="h-3 w-3" />
                                   Sent
                                 </Badge>
                               ) : (
-                                <Badge variant="secondary" className="gap-1 text-xs">
+                                <Badge variant="secondary" className="gap-1">
                                   <Clock className="h-3 w-3" />
                                   Draft
                                 </Badge>
                               )}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-muted-foreground">
-                              {mom.projects && (
-                                <Badge variant="outline" className="font-normal">
-                                  {mom.projects.name}
-                                </Badge>
-                              )}
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3.5 w-3.5" />
-                                <span>{format(new Date(mom.created_at), 'MMM d, yyyy')}</span>
-                              </div>
-                              {mom.profiles && (
+                            </TableCell>
+                            <TableCell>
+                              {mom.participants && mom.participants.length > 0 ? (
                                 <div className="flex items-center gap-1">
-                                  <User className="h-3.5 w-3.5" />
-                                  <span>{mom.profiles.full_name || mom.profiles.email.split('@')[0]}</span>
+                                  <span className={`font-medium ${stats.agreed === stats.total ? 'text-green-600' : 'text-amber-600'}`}>
+                                    {stats.agreed}/{stats.total}
+                                  </span>
+                                  <span className="text-muted-foreground text-sm">agreed</span>
                                 </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">No participants</span>
                               )}
-                            </div>
-                            
-                            {/* Participants and Agreement Status */}
-                            {mom.participants && mom.participants.length > 0 && (
-                              <div className="flex items-center gap-3 mt-3">
+                            </TableCell>
+                            <TableCell>
+                              {pendingParticipants.length > 0 ? (
                                 <TooltipProvider>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex -space-x-2">
-                                      {mom.participants.slice(0, 5).map((participant) => (
-                                        <Tooltip key={participant.user_id}>
-                                          <TooltipTrigger asChild>
-                                            <Avatar className={`h-7 w-7 border-2 transition-all ${participant.has_agreed ? 'border-green-500 ring-2 ring-green-500/20' : 'border-background'}`}>
-                                              <AvatarImage src={participant.profiles?.avatar_url || undefined} />
-                                              <AvatarFallback className="text-xs">
-                                                {getInitials(participant.profiles?.full_name || null, participant.profiles?.email || '')}
-                                              </AvatarFallback>
-                                            </Avatar>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p className="flex items-center gap-1">
-                                              {participant.profiles?.full_name || participant.profiles?.email?.split('@')[0]}
-                                              {participant.has_agreed && <Check className="h-3 w-3 text-green-500" />}
-                                            </p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      ))}
-                                      {mom.participants.length > 5 && (
-                                        <Avatar className="h-7 w-7 border-2 border-background">
-                                          <AvatarFallback className="text-xs bg-muted">
-                                            +{mom.participants.length - 5}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                      )}
-                                    </div>
-                                    <Badge 
-                                      variant={stats.agreed === stats.total ? "default" : "outline"} 
-                                      className="text-xs gap-1"
-                                    >
-                                      <Check className="h-3 w-3" />
-                                      {stats.agreed}/{stats.total} agreed
-                                    </Badge>
+                                  <div className="flex -space-x-1">
+                                    {pendingParticipants.slice(0, 3).map((p) => (
+                                      <Tooltip key={p.user_id}>
+                                        <TooltipTrigger asChild>
+                                          <Avatar className="h-6 w-6 border border-background">
+                                            <AvatarImage src={p.profiles?.avatar_url || undefined} />
+                                            <AvatarFallback className="text-[10px]">
+                                              {getInitials(p.profiles?.full_name || null, p.profiles?.email || '')}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {p.profiles?.full_name || p.profiles?.email?.split('@')[0]}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    ))}
+                                    {pendingParticipants.length > 3 && (
+                                      <Avatar className="h-6 w-6 border border-background">
+                                        <AvatarFallback className="text-[10px] bg-muted">
+                                          +{pendingParticipants.length - 3}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    )}
                                   </div>
                                 </TooltipProvider>
-                                
-                                {canAgree && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-7 text-xs gap-1 border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAgree(mom.id);
+                              ) : mom.is_sent && mom.participants && mom.participants.length > 0 ? (
+                                <span className="text-green-600 text-sm flex items-center gap-1">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  All approved
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {isCreator && !mom.is_sent && mom.participants && mom.participants.length > 0 && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 gap-1"
+                                    onClick={() => {
+                                      setMomToSend(mom);
+                                      setSendConfirmOpen(true);
                                     }}
                                   >
-                                    <Check className="h-3 w-3" />
-                                    Agree
+                                    <Send className="h-3 w-3" />
+                                    Send
                                   </Button>
                                 )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => {
+                                    setSelectedMom(mom);
+                                    setViewDialogOpen(true);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
                               </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {/* Send button for drafts */}
-                          {isCreator && !mom.is_sent && mom.participants && mom.participants.length > 0 && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              className="gap-1"
-                              onClick={() => {
-                                setMomToSend(mom);
-                                setSendConfirmOpen(true);
-                              }}
-                            >
-                              <Send className="h-4 w-4" />
-                              Send
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedMom(mom);
-                              setViewDialogOpen(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {isCreator && (
-                            <>
-                              <Button variant="ghost" size="icon">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteMom(mom.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
-      )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* View dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
