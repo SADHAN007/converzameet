@@ -13,7 +13,47 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, password, fullName, role = "user" } = await req.json();
+    const body = await req.json();
+    const { action } = body;
+
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    // Handle delete action
+    if (action === "delete") {
+      const { userId } = body;
+      
+      if (!userId) {
+        return new Response(
+          JSON.stringify({ error: "User ID is required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Delete user from auth (this will cascade to profiles and roles due to foreign keys)
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+      if (deleteError) {
+        console.error("Delete error:", deleteError);
+        return new Response(
+          JSON.stringify({ error: deleteError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`User deleted: ${userId}`);
+
+      return new Response(
+        JSON.stringify({ success: true, message: "User deleted successfully" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Default: Create user action
+    const { email, password, fullName, role = "user" } = body;
 
     if (!email || !password) {
       return new Response(
@@ -24,12 +64,6 @@ Deno.serve(async (req) => {
 
     // Validate role
     const validRole = VALID_ROLES.includes(role) ? role : "user";
-
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
 
     // Create the user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -84,7 +118,7 @@ Deno.serve(async (req) => {
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Create user error:", message);
+    console.error("User management error:", message);
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
