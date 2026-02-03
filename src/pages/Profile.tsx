@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import ThemeSelector from '@/components/settings/ThemeSelector';
 
 interface ProfileData {
   full_name: string | null;
@@ -249,6 +250,9 @@ export default function Profile() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Theme Selection */}
+      <ThemeSelector />
 
       {/* Personal Info */}
       <Card>

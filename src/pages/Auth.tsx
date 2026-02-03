@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { LayoutDashboard, Users, MessageSquare, Calendar, Lock, Mail } from 'lucide-react';
-import converzaLogo from '@/assets/converza-logo.png';
+import ThemedLogo from '@/components/branding/ThemedLogo';
 
 const signInSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -100,11 +100,7 @@ export default function Auth() {
             transition={{ duration: 0.6 }}
           >
             <div className="flex items-center gap-3 mb-8">
-              <img 
-                src={converzaLogo} 
-                alt="Converza" 
-                className="h-40 object-contain"
-              />
+              <ThemedLogo className="h-40" />
             </div>
             
             <h1 className="text-4xl font-bold text-primary-foreground mb-4">
@@ -143,11 +139,7 @@ export default function Auth() {
           className="w-full max-w-md"
         >
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <img 
-              src={converzaLogo} 
-              alt="Converza" 
-              className="h-12 object-contain"
-            />
+            <ThemedLogo className="h-12" />
           </div>
 
           <div className="text-center mb-8">
