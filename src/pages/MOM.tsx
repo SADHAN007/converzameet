@@ -53,6 +53,7 @@ import RichTextEditor from '@/components/mom/RichTextEditor';
 import ParticipantSelector from '@/components/mom/ParticipantSelector';
 import FileAttachment from '@/components/mom/FileAttachment';
 import ApprovalProgressBar from '@/components/mom/ApprovalProgressBar';
+import MOMCard from '@/components/mom/MOMCard';
 
 interface Attachment {
   id?: string;
@@ -754,146 +755,35 @@ export default function MOMPage() {
             </Card>
           ) : (
             <div className="grid gap-4">
-              <AnimatePresence>
+              <AnimatePresence mode="popLayout">
                 {filteredMoms.map((mom, index) => {
-                  const stats = getAgreementStats(mom.participants);
                   const canAgree = mom.is_sent && isUserParticipant(mom) && !hasUserAgreed(mom);
                   const isCreator = mom.created_by === user?.id;
-                  const approvalStatus = getMomApprovalStatus(mom);
+                  const hasAgreed = hasUserAgreed(mom) || false;
                   
                   return (
-                    <motion.div
+                    <MOMCard
                       key={mom.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Card className="card-hover group overflow-hidden">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-4 flex-1 min-w-0">
-                              <div
-                                className="h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
-                                style={{ backgroundColor: mom.projects?.color || '#3b82f6' }}
-                              >
-                                <FileText className="h-6 w-6 text-white" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h3 className="font-semibold text-foreground truncate">{mom.title}</h3>
-                                  {/* Status Badge */}
-                                  {approvalStatus === 'approved' ? (
-                                    <Badge className="gap-1 text-xs bg-green-600 hover:bg-green-600">
-                                      <CheckCircle2 className="h-3 w-3" />
-                                      Approved
-                                    </Badge>
-                                  ) : approvalStatus === 'pending' ? (
-                                    <Badge variant="outline" className="gap-1 text-xs border-amber-500 text-amber-600">
-                                      <AlertCircle className="h-3 w-3" />
-                                      Pending
-                                    </Badge>
-                                  ) : mom.is_sent ? (
-                                    <Badge variant="default" className="gap-1 text-xs">
-                                      <CheckCircle2 className="h-3 w-3" />
-                                      Sent
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="secondary" className="gap-1 text-xs">
-                                      <Clock className="h-3 w-3" />
-                                      Draft
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-muted-foreground">
-                                  {mom.projects && (
-                                    <Badge variant="outline" className="font-normal">
-                                      {mom.projects.name}
-                                    </Badge>
-                                  )}
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    <span>{format(new Date(mom.created_at), 'MMM d, yyyy')}</span>
-                                  </div>
-                                  {mom.profiles && (
-                                    <div className="flex items-center gap-1">
-                                      <User className="h-3.5 w-3.5" />
-                                      <span>{mom.profiles.full_name || mom.profiles.email.split('@')[0]}</span>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                {/* Approval Progress Bar */}
-                                {mom.participants && mom.participants.length > 0 && (
-                                  <div className="mt-3 space-y-2">
-                                    <ApprovalProgressBar
-                                      participants={mom.participants}
-                                      isSent={mom.is_sent}
-                                    />
-                                    {canAgree && (
-                                      <Button 
-                                        size="sm" 
-                                        variant="outline" 
-                                        className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleAgree(mom.id);
-                                        }}
-                                      >
-                                        <Check className="h-3 w-3" />
-                                        Agree
-                                      </Button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {/* Send button for drafts */}
-                              {isCreator && !mom.is_sent && mom.participants && mom.participants.length > 0 && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="gap-1"
-                                  onClick={() => {
-                                    setMomToSend(mom);
-                                    setSendConfirmOpen(true);
-                                  }}
-                                >
-                                  <Send className="h-4 w-4" />
-                                  Send
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                  setSelectedMom(mom);
-                                  setViewDialogOpen(true);
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              {isCreator && (
-                                <Button variant="ghost" size="icon">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {(isCreator || isAdmin) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteMom(mom.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
+                      mom={mom}
+                      index={index}
+                      isCreator={isCreator}
+                      isAdmin={isAdmin}
+                      canAgree={canAgree}
+                      hasAgreed={hasAgreed}
+                      onView={() => {
+                        setSelectedMom(mom);
+                        setViewDialogOpen(true);
+                      }}
+                      onEdit={() => {
+                        // TODO: Implement edit functionality
+                      }}
+                      onDelete={() => handleDeleteMom(mom.id)}
+                      onSend={() => {
+                        setMomToSend(mom);
+                        setSendConfirmOpen(true);
+                      }}
+                      onAgree={() => handleAgree(mom.id)}
+                    />
                   );
                 })}
               </AnimatePresence>
