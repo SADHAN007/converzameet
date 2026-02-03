@@ -128,7 +128,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
       {/* Header */}
       <div className={cn(
         "flex items-center justify-between border-b border-sidebar-border px-3",
-        collapsed ? "h-16" : "h-24"
+        collapsed ? "h-16" : "h-28"
       )}>
         <div className={cn(
           "flex items-center justify-center overflow-hidden transition-all duration-200",
@@ -139,7 +139,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
             alt="Converza" 
             className={cn(
               "object-contain transition-all duration-200",
-              collapsed ? "h-10 w-10" : "h-24 w-full max-w-[220px]"
+              collapsed ? "h-10 w-10" : "h-28 w-full max-w-[240px]"
             )}
           />
         </div>
