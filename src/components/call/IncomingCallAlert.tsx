@@ -36,6 +36,32 @@ const createRingtone = (audioContext: AudioContext) => {
   return { oscillator, gainNode };
 };
 
+// Request notification permission on load
+const requestNotificationPermission = async () => {
+  if ('Notification' in window && Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+};
+
+const showDesktopNotification = (callerName: string, callId: string) => {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const notification = new Notification('Incoming Call', {
+      body: `${callerName} is calling you`,
+      icon: '/favicon.png',
+      tag: `call-${callId}`,
+      requireInteraction: true,
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+
+    return notification;
+  }
+  return null;
+};
+
 export default function IncomingCallAlert() {
   const { toast } = useToast();
   const [incomingCall, setIncomingCall] = useState<CallRequest | null>(null);
@@ -44,6 +70,12 @@ export default function IncomingCallAlert() {
   const oscillatorRef = useRef<OscillatorNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const ringtoneIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const notificationRef = useRef<Notification | null>(null);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   // Ringtone pattern: ring for 1s, silence for 0.5s
   const startRingtone = () => {
@@ -191,15 +223,29 @@ export default function IncomingCallAlert() {
     };
   }, []);
 
-  // Play/stop ringtone when call state changes
+  // Play/stop ringtone and show notification when call state changes
   useEffect(() => {
     if (incomingCall) {
       startRingtone();
+      // Show desktop notification
+      const callerName = incomingCall.caller_profile?.full_name || 'Unknown';
+      notificationRef.current = showDesktopNotification(callerName, incomingCall.id);
     } else {
       stopRingtone();
+      // Close notification
+      if (notificationRef.current) {
+        notificationRef.current.close();
+        notificationRef.current = null;
+      }
     }
     
-    return () => stopRingtone();
+    return () => {
+      stopRingtone();
+      if (notificationRef.current) {
+        notificationRef.current.close();
+        notificationRef.current = null;
+      }
+    };
   }, [incomingCall]);
 
   // Auto-dismiss expired calls
