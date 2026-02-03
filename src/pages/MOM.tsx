@@ -483,7 +483,7 @@ export default function MOMPage() {
     return email.slice(0, 2).toUpperCase();
   };
 
-  const handleShareToWhatsApp = (mom: MOM) => {
+  const handleShareToWhatsApp = async (mom: MOM) => {
     const projectName = mom.projects?.name || 'Project';
     const createdDate = format(new Date(mom.created_at), 'MMMM d, yyyy');
     
@@ -492,10 +492,10 @@ export default function MOMPage() {
     tempDiv.innerHTML = mom.content?.html || mom.content?.text || '';
     const textContent = tempDiv.textContent || tempDiv.innerText || 'No content';
     
-    // Build WhatsApp message
-    const message = `📋 *Meeting Minutes*
+    // Build message
+    const message = `📋 Meeting Minutes
 
-*${mom.title}*
+${mom.title}
 📁 Project: ${projectName}
 📅 Date: ${createdDate}
 ${mom.sent_at ? `✉️ Sent: ${format(new Date(mom.sent_at), 'MMM d, h:mm a')}` : ''}
@@ -504,11 +504,31 @@ ${mom.sent_at ? `✉️ Sent: ${format(new Date(mom.sent_at), 'MMM d, h:mm a')}`
 ${textContent.substring(0, 1000)}${textContent.length > 1000 ? '...' : ''}
 
 ---
-_Shared from Converza_`;
+Shared from Converza`;
 
+    // Try Web Share API first (works on mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: mom.title,
+          text: message,
+        });
+        return;
+      } catch (err) {
+        // User cancelled or share failed, fall back to WhatsApp URL
+        console.log('Web Share cancelled, trying WhatsApp URL');
+      }
+    }
+
+    // Fallback: Create a temporary link and click it
     const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
+    const link = document.createElement('a');
+    link.href = `https://wa.me/?text=${encodedMessage}`;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const isUserParticipant = (mom: MOM) => {
