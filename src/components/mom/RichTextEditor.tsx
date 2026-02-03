@@ -73,7 +73,7 @@ export default function RichTextEditor({ content, onChange, placeholder, classNa
   });
 
   // Speech to text hook
-  const { isListening, isSupported, toggleListening } = useSpeechToText({
+  const { isListening, isSupported, formattedTime, toggleListening } = useSpeechToText({
     onResult: (transcript) => {
       if (editor && transcript) {
         // Insert transcribed text at cursor position
@@ -243,17 +243,35 @@ export default function RichTextEditor({ content, onChange, placeholder, classNa
 
           {/* Voice to Text */}
           {isSupported ? (
-            <ToolbarButton
-              onClick={toggleListening}
-              isActive={isListening}
-              tooltip={isListening ? "Stop Recording" : "Start Voice Input"}
-            >
-              {isListening ? (
-                <MicOff className="h-4 w-4 text-destructive animate-pulse" />
-              ) : (
-                <Mic className="h-4 w-4" />
+            <div className="flex items-center gap-1">
+              <ToolbarButton
+                onClick={toggleListening}
+                isActive={isListening}
+                tooltip={isListening ? "Stop Recording" : "Start Voice Input"}
+              >
+                {isListening ? (
+                  <MicOff className="h-4 w-4 text-destructive" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </ToolbarButton>
+              
+              {/* Recording Indicator */}
+              {isListening && (
+                <div className="flex items-center gap-2 px-2 py-1 bg-destructive/10 border border-destructive/30 rounded-md animate-fade-in">
+                  {/* Pulsing dot */}
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span>
+                  </span>
+                  
+                  {/* Recording label and time */}
+                  <span className="text-xs font-medium text-destructive">
+                    REC {formattedTime}
+                  </span>
+                </div>
               )}
-            </ToolbarButton>
+            </div>
           ) : (
             <Tooltip>
               <TooltipTrigger asChild>

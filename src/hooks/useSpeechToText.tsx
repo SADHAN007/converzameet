@@ -28,7 +28,9 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [recordingTime, setRecordingTime] = useState(0);
   const recognitionRef = useRef<any>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Check for browser support
@@ -109,6 +111,28 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}) {
     };
   }, [continuous, language, onResult, onError]);
 
+  // Timer effect for recording duration
+  useEffect(() => {
+    if (isListening) {
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setRecordingTime(0);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [isListening]);
+
   const startListening = useCallback(async () => {
     if (!recognitionRef.current) {
       onError?.('Speech recognition not supported in this browser');
@@ -143,10 +167,19 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}) {
     }
   }, [isListening, startListening, stopListening]);
 
+  // Format time as MM:SS
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return {
     isListening,
     isSupported,
     transcript,
+    recordingTime,
+    formattedTime: formatTime(recordingTime),
     startListening,
     stopListening,
     toggleListening
