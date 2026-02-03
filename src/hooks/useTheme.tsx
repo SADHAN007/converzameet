@@ -58,6 +58,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     const colors = themeColors[theme];
     
+    // Add transition class for smooth color changes
+    root.classList.add('theme-transitioning');
+    
     // Update CSS variables for light mode
     root.style.setProperty('--primary', colors.primary);
     root.style.setProperty('--accent', colors.accent);
@@ -73,6 +76,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     
     // Store in localStorage
     localStorage.setItem(THEME_STORAGE_KEY, theme);
+    
+    // Remove transition class after animation completes
+    const timeout = setTimeout(() => {
+      root.classList.remove('theme-transitioning');
+    }, 500);
+    
+    return () => clearTimeout(timeout);
   }, [theme]);
 
   const setTheme = (newTheme: ThemeColor) => {

@@ -146,6 +146,20 @@
     scroll-behavior: smooth;
   }
   
+  /* Theme transition animation */
+  html.theme-transitioning,
+  html.theme-transitioning *,
+  html.theme-transitioning *::before,
+  html.theme-transitioning *::after {
+    transition: background-color 0.4s ease-out, 
+                border-color 0.4s ease-out, 
+                color 0.3s ease-out,
+                box-shadow 0.4s ease-out,
+                fill 0.3s ease-out,
+                stroke 0.3s ease-out,
+                filter 0.4s ease-out !important;
+  }
+  
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
