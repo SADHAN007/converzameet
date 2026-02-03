@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2, Download, AlertCircle, Table2 } from 'lucide-react';
+import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2, Download, AlertCircle, Table2, Paperclip } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,17 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import RichTextEditor from '@/components/mom/RichTextEditor';
 import ParticipantSelector from '@/components/mom/ParticipantSelector';
+import FileAttachment from '@/components/mom/FileAttachment';
+import ApprovalProgressBar from '@/components/mom/ApprovalProgressBar';
+
+interface Attachment {
+  id?: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  file_url: string;
+  isUploading?: boolean;
+}
 
 interface MOMParticipant {
   id: string;
@@ -117,6 +128,7 @@ export default function MOMPage() {
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const pdfContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -190,11 +202,20 @@ export default function MOMPage() {
     }
   };
 
-  const handleCreateMom = async () => {
+  const handleCreateAndSendMom = async (sendImmediately: boolean = true) => {
     if (!newMom.title.trim() || !newMom.project_id) {
       toast({
         title: 'Missing fields',
         description: 'Please fill in title and select a project',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (sendImmediately && selectedParticipants.length === 0) {
+      toast({
+        title: 'No participants',
+        description: 'Please add at least one participant to send the MOM',
         variant: 'destructive',
       });
       return;
@@ -209,7 +230,8 @@ export default function MOMPage() {
           project_id: newMom.project_id,
           content: { html: editorContent },
           created_by: user?.id,
-          is_sent: false,
+          is_sent: sendImmediately,
+          sent_at: sendImmediately ? new Date().toISOString() : null,
         })
         .select('*, projects(name, color)')
         .single();
@@ -223,6 +245,24 @@ export default function MOMPage() {
         }));
 
         await supabase.from('mom_participants').insert(participantsToInsert);
+      }
+
+      // Save attachments to database
+      if (data && attachments.length > 0) {
+        const attachmentsToInsert = attachments
+          .filter(a => a.file_url && !a.isUploading)
+          .map(a => ({
+            mom_id: data.id,
+            file_name: a.file_name,
+            file_type: a.file_type,
+            file_size: a.file_size,
+            file_url: a.file_url,
+            uploaded_by: user?.id,
+          }));
+
+        if (attachmentsToInsert.length > 0) {
+          await supabase.from('mom_attachments').insert(attachmentsToInsert);
+        }
       }
 
       if (data) {
@@ -245,8 +285,8 @@ export default function MOMPage() {
 
         setMoms([{
           ...data,
-          is_sent: false,
-          sent_at: null,
+          is_sent: sendImmediately,
+          sent_at: sendImmediately ? new Date().toISOString() : null,
           projects: data.projects as { name: string; color: string } | undefined,
           profiles: profile || undefined,
           participants: participantProfiles
@@ -256,10 +296,13 @@ export default function MOMPage() {
       setNewMom({ title: '', project_id: '' });
       setEditorContent('');
       setSelectedParticipants([]);
+      setAttachments([]);
       setCreateDialogOpen(false);
       toast({
-        title: 'MOM created',
-        description: 'Meeting minutes saved as draft. Send it to notify participants.',
+        title: sendImmediately ? 'MOM sent!' : 'MOM saved as draft',
+        description: sendImmediately 
+          ? 'All participants have been notified and can now view this MOM.'
+          : 'Meeting minutes saved. You can send it later.',
       });
     } catch (error: any) {
       toast({
@@ -576,6 +619,12 @@ export default function MOMPage() {
 • Next steps"
                   />
                 </div>
+                {/* File Attachments */}
+                <FileAttachment
+                  attachments={attachments}
+                  onAttachmentsChange={setAttachments}
+                  userId={user?.id}
+                />
               </div>
 
               {/* Right column - Participants */}
@@ -588,15 +637,28 @@ export default function MOMPage() {
                 />
               </div>
             </div>
-            <DialogFooter className="gap-2">
+            <DialogFooter className="gap-2 flex-wrap">
               <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateMom} disabled={creating} className="gap-2">
-                {creating ? 'Creating...' : (
+              <Button 
+                variant="secondary" 
+                onClick={() => handleCreateAndSendMom(false)} 
+                disabled={creating}
+                className="gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                Save as Draft
+              </Button>
+              <Button 
+                onClick={() => handleCreateAndSendMom(true)} 
+                disabled={creating || selectedParticipants.length === 0} 
+                className="gap-2"
+              >
+                {creating ? 'Sending...' : (
                   <>
-                    <FileText className="h-4 w-4" />
-                    Save as Draft
+                    <Send className="h-4 w-4" />
+                    Send to Participants
                   </>
                 )}
               </Button>
@@ -761,53 +823,18 @@ export default function MOMPage() {
                                   )}
                                 </div>
                                 
-                                {/* Participants and Agreement Status */}
+                                {/* Approval Progress Bar */}
                                 {mom.participants && mom.participants.length > 0 && (
-                                  <div className="flex items-center gap-3 mt-3">
-                                    <TooltipProvider>
-                                      <div className="flex items-center gap-2">
-                                        <div className="flex -space-x-2">
-                                          {mom.participants.slice(0, 5).map((participant) => (
-                                            <Tooltip key={participant.user_id}>
-                                              <TooltipTrigger asChild>
-                                                <Avatar className={`h-7 w-7 border-2 transition-all ${participant.has_agreed ? 'border-green-500 ring-2 ring-green-500/20' : 'border-background'}`}>
-                                                  <AvatarImage src={participant.profiles?.avatar_url || undefined} />
-                                                  <AvatarFallback className="text-xs">
-                                                    {getInitials(participant.profiles?.full_name || null, participant.profiles?.email || '')}
-                                                  </AvatarFallback>
-                                                </Avatar>
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                                <p className="flex items-center gap-1">
-                                                  {participant.profiles?.full_name || participant.profiles?.email?.split('@')[0]}
-                                                  {participant.has_agreed && <Check className="h-3 w-3 text-green-500" />}
-                                                </p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                          ))}
-                                          {mom.participants.length > 5 && (
-                                            <Avatar className="h-7 w-7 border-2 border-background">
-                                              <AvatarFallback className="text-xs bg-muted">
-                                                +{mom.participants.length - 5}
-                                              </AvatarFallback>
-                                            </Avatar>
-                                          )}
-                                        </div>
-                                        <Badge 
-                                          variant={stats.agreed === stats.total ? "default" : "outline"} 
-                                          className="text-xs gap-1"
-                                        >
-                                          <Check className="h-3 w-3" />
-                                          {stats.agreed}/{stats.total} agreed
-                                        </Badge>
-                                      </div>
-                                    </TooltipProvider>
-                                    
+                                  <div className="mt-3 space-y-2">
+                                    <ApprovalProgressBar
+                                      participants={mom.participants}
+                                      isSent={mom.is_sent}
+                                    />
                                     {canAgree && (
                                       <Button 
                                         size="sm" 
                                         variant="outline" 
-                                        className="h-7 text-xs gap-1 border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+                                        className="h-7 text-xs gap-1 border-primary text-primary hover:bg-primary/10"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleAgree(mom.id);
@@ -1109,31 +1136,27 @@ export default function MOMPage() {
                   </p>
                 </div>
 
-                {/* Participants Section */}
+                {/* Approval Status Progress Bar */}
                 {selectedMom.participants && selectedMom.participants.length > 0 && (
-                  <div className="border rounded-xl p-4 space-y-3 bg-muted/30 mb-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <Users className="h-4 w-4 text-primary" />
-                        Participants
-                      </h4>
-                      {(() => {
-                        const stats = getAgreementStats(selectedMom.participants);
-                        return (
-                          <Badge variant={stats.agreed === stats.total ? "default" : "secondary"}>
-                            {stats.agreed}/{stats.total} agreed
-                          </Badge>
-                        );
-                      })()}
+                  <div className="border rounded-xl p-4 space-y-4 bg-muted/30 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      <h4 className="font-medium">Approval Status</h4>
                     </div>
-                    <div className="grid gap-2">
+                    <ApprovalProgressBar
+                      participants={selectedMom.participants}
+                      isSent={selectedMom.is_sent}
+                    />
+                    
+                    {/* Detailed participant list */}
+                    <div className="grid gap-2 pt-2 border-t">
                       {selectedMom.participants.map((participant) => (
                         <div 
                           key={participant.user_id}
                           className="flex items-center justify-between p-2.5 rounded-lg bg-background border"
                         >
                           <div className="flex items-center gap-3">
-                            <Avatar className={`h-9 w-9 ring-2 ${participant.has_agreed ? 'ring-green-500' : 'ring-transparent'}`}>
+                            <Avatar className={`h-9 w-9 ring-2 ${participant.has_agreed ? 'ring-primary' : 'ring-transparent'}`}>
                               <AvatarImage src={participant.profiles?.avatar_url || undefined} />
                               <AvatarFallback className="text-xs">
                                 {getInitials(participant.profiles?.full_name || null, participant.profiles?.email || '')}
@@ -1149,9 +1172,9 @@ export default function MOMPage() {
                             </div>
                           </div>
                           {participant.has_agreed ? (
-                            <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-600">
+                            <Badge variant="default" className="gap-1">
                               <Check className="h-3 w-3" />
-                              Agreed
+                              Approved
                               {participant.agreed_at && (
                                 <span className="text-xs opacity-75 ml-1">
                                   {format(new Date(participant.agreed_at), 'MMM d')}
