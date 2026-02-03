@@ -9,6 +9,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import ChatBot from '@/components/chat/ChatBot';
 import IncomingCallAlert from '@/components/call/IncomingCallAlert';
 import StartCallDialog from '@/components/call/StartCallDialog';
+import FullPageLoader from '@/components/ui/FullPageLoader';
 
 export default function DashboardLayout() {
   const { user, isLoading } = useAuth();
@@ -17,11 +18,7 @@ export default function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <FullPageLoader text="Loading your workspace..." />;
   }
 
   if (!user) {

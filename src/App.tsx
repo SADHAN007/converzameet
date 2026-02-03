@@ -1,9 +1,11 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
+import FullPageLoader from "./components/ui/FullPageLoader";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import Auth from "./pages/Auth";
 import Install from "./pages/Install";
@@ -26,24 +28,26 @@ const App = () => (
       <AuthProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/install" element={<Install />} />
-            <Route element={<DashboardLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/chat" element={<Chat />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/mom" element={<MOMPage />} />
-              <Route path="/calls" element={<CallHistory />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/profile" element={<Profile />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <Suspense fallback={<FullPageLoader />}>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/install" element={<Install />} />
+              <Route element={<DashboardLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/chat" element={<Chat />} />
+                <Route path="/messages" element={<Messages />} />
+                <Route path="/calendar" element={<CalendarPage />} />
+                <Route path="/mom" element={<MOMPage />} />
+                <Route path="/calls" element={<CallHistory />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/profile" element={<Profile />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </Suspense>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
