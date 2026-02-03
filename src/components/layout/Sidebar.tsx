@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useMissedCalls } from '@/hooks/useMissedCalls';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -48,6 +49,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
   const { user, isAdmin, signOut } = useAuth();
   const { missedCount } = useMissedCalls();
   const { canInstall, isInstalled, promptInstall } = usePWAInstall();
+  const { profile } = useUserProfile();
 
   const handleInstallClick = async () => {
     if (canInstall) {
@@ -72,9 +74,14 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
     { to: '/admin/users', icon: Users, label: 'Users' },
   ];
 
-  const getInitials = (email: string) => {
-    return email.slice(0, 2).toUpperCase();
+  const getInitials = (name?: string | null, email?: string) => {
+    if (name) {
+      return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    }
+    return email?.slice(0, 2).toUpperCase() || 'U';
   };
+
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
 
   const NavItem = ({ to, icon: Icon, label, badge }: NavItemType) => {
     const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
@@ -238,16 +245,16 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
       {/* User section */}
       <div className="p-3 border-t border-sidebar-border">
         <div className={cn('flex items-center gap-3 p-2 rounded-lg', !collapsed && 'bg-sidebar-accent/50')}>
-          <Avatar className="h-9 w-9 flex-shrink-0">
-            <AvatarImage src="" />
+          <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-sidebar-primary/20">
+            <AvatarImage src={profile?.avatar_url || ''} alt={displayName} />
             <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm">
-              {user?.email ? getInitials(user.email) : 'U'}
+              {getInitials(profile?.full_name, user?.email)}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {user?.email?.split('@')[0]}
+                {displayName}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
                 {isAdmin ? 'Admin' : 'Member'}
