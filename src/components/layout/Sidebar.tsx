@@ -139,7 +139,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
             alt="Converza" 
             className={cn(
               "object-contain transition-all duration-200",
-              collapsed ? "h-10 w-10" : "h-20 w-full max-w-[200px]"
+              collapsed ? "h-10 w-10" : "h-24 w-full max-w-[220px]"
             )}
           />
         </div>
