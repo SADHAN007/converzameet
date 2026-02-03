@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,11 +54,14 @@ interface MOMCardProps {
   isAdmin: boolean;
   canAgree: boolean;
   hasAgreed: boolean;
+  isSelected: boolean;
+  isSelectionMode: boolean;
   onView: () => void;
   onEdit?: () => void;
   onDelete: () => void;
   onSend: () => void;
   onAgree: () => void;
+  onSelect: (selected: boolean) => void;
 }
 
 export default function MOMCard({
@@ -67,11 +71,14 @@ export default function MOMCard({
   isAdmin,
   canAgree,
   hasAgreed,
+  isSelected,
+  isSelectionMode,
   onView,
   onEdit,
   onDelete,
   onSend,
   onAgree,
+  onSelect,
 }: MOMCardProps) {
   const getApprovalStatus = () => {
     if (!mom.is_sent) return 'draft';
@@ -112,6 +119,15 @@ export default function MOMCard({
   const hasParticipants = mom.participants && mom.participants.length > 0;
   const canSendDraft = isCreator && !mom.is_sent && hasParticipants;
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // If in selection mode, toggle selection on card click
+    if (isSelectionMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      onSelect(!isSelected);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -128,9 +144,17 @@ export default function MOMCard({
           status === 'approved' && "border-l-green-500",
           status === 'pending' && "border-l-amber-500",
           status === 'draft' && "border-l-muted-foreground/30",
-          status === 'sent' && "border-l-primary"
+          status === 'sent' && "border-l-primary",
+          isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+          isSelectionMode && "cursor-pointer"
         )}
+        onClick={handleCardClick}
       >
+        {/* Selected overlay */}
+        {isSelected && (
+          <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
+        )}
+        
         {/* Subtle gradient overlay on hover */}
         <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         
@@ -138,6 +162,21 @@ export default function MOMCard({
           {/* Main Content Area */}
           <div className="p-5">
             <div className="flex items-start gap-4">
+              {/* Selection Checkbox */}
+              <div 
+                className={cn(
+                  "flex-shrink-0 transition-all duration-200",
+                  isSelectionMode ? "opacity-100 w-6" : "opacity-0 w-0 overflow-hidden"
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={(checked) => onSelect(checked as boolean)}
+                  className="mt-3"
+                />
+              </div>
+
               {/* Project Color Indicator */}
               <div
                 className="h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm transition-transform group-hover:scale-105"

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2, Download, AlertCircle, Table2, Paperclip } from 'lucide-react';
+import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2, Download, AlertCircle, Table2, Paperclip, CheckSquare } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +54,7 @@ import ParticipantSelector from '@/components/mom/ParticipantSelector';
 import FileAttachment from '@/components/mom/FileAttachment';
 import ApprovalProgressBar from '@/components/mom/ApprovalProgressBar';
 import MOMCard from '@/components/mom/MOMCard';
+import BulkActionBar from '@/components/mom/BulkActionBar';
 
 interface Attachment {
   id?: string;
@@ -130,7 +131,11 @@ export default function MOMPage() {
   const [sending, setSending] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [selectedMomIds, setSelectedMomIds] = useState<Set<string>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
   const pdfContentRef = useRef<HTMLDivElement>(null);
+
+  const isSelectionMode = selectedMomIds.size > 0;
 
   useEffect(() => {
     fetchData();
@@ -432,6 +437,127 @@ export default function MOMPage() {
     );
   };
 
+  // Bulk selection helpers
+  const toggleMomSelection = (momId: string, selected: boolean) => {
+    setSelectedMomIds(prev => {
+      const next = new Set(prev);
+      if (selected) {
+        next.add(momId);
+      } else {
+        next.delete(momId);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedMomIds(new Set());
+  };
+
+  // Calculate what actions are available for selected MOMs
+  const bulkActionStats = useMemo(() => {
+    const selectedMoms = moms.filter(m => selectedMomIds.has(m.id));
+    
+    // Count MOMs user can approve (is participant & hasn't agreed yet)
+    const canApprove = selectedMoms.filter(m => 
+      m.is_sent && 
+      m.participants?.some(p => p.user_id === user?.id && !p.has_agreed)
+    );
+    
+    // Count MOMs user can delete (is creator or admin)
+    const canDelete = selectedMoms.filter(m => 
+      m.created_by === user?.id || isAdmin
+    );
+    
+    return {
+      canApproveCount: canApprove.length,
+      canApproveIds: canApprove.map(m => m.id),
+      canDeleteCount: canDelete.length,
+      canDeleteIds: canDelete.map(m => m.id),
+    };
+  }, [selectedMomIds, moms, user?.id, isAdmin]);
+
+  const handleBulkApprove = async () => {
+    if (bulkActionStats.canApproveIds.length === 0) return;
+    
+    setBulkProcessing(true);
+    try {
+      // Approve all selected MOMs where user is a participant
+      const promises = bulkActionStats.canApproveIds.map(momId =>
+        supabase
+          .from('mom_participants')
+          .update({ 
+            has_agreed: true, 
+            agreed_at: new Date().toISOString() 
+          })
+          .eq('mom_id', momId)
+          .eq('user_id', user?.id)
+      );
+
+      await Promise.all(promises);
+
+      // Update local state
+      setMoms(moms.map(m => {
+        if (bulkActionStats.canApproveIds.includes(m.id)) {
+          return {
+            ...m,
+            participants: m.participants?.map(p => 
+              p.user_id === user?.id 
+                ? { ...p, has_agreed: true, agreed_at: new Date().toISOString() }
+                : p
+            )
+          };
+        }
+        return m;
+      }));
+
+      clearSelection();
+      toast({
+        title: 'Bulk approval complete',
+        description: `${bulkActionStats.canApproveCount} MOM(s) approved successfully`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to approve MOMs',
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (bulkActionStats.canDeleteIds.length === 0) return;
+    
+    setBulkProcessing(true);
+    try {
+      const { error } = await supabase
+        .from('moms')
+        .delete()
+        .in('id', bulkActionStats.canDeleteIds);
+
+      if (error) throw error;
+
+      // Update local state
+      setMoms(moms.filter(m => !bulkActionStats.canDeleteIds.includes(m.id)));
+      clearSelection();
+      
+      toast({
+        title: 'Bulk delete complete',
+        description: `${bulkActionStats.canDeleteCount} MOM(s) deleted successfully`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete MOMs',
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
   const handleExportPdf = async () => {
     if (!selectedMom || !pdfContentRef.current) return;
 
@@ -728,16 +854,31 @@ export default function MOMPage() {
 
       {/* Tabs for view toggle */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="cards" className="gap-2">
-            <FileText className="h-4 w-4" />
-            Cards
-          </TabsTrigger>
-          <TabsTrigger value="table" className="gap-2">
-            <Table2 className="h-4 w-4" />
-            Status Table
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="cards" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Cards
+            </TabsTrigger>
+            <TabsTrigger value="table" className="gap-2">
+              <Table2 className="h-4 w-4" />
+              Status Table
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Selection Mode Toggle */}
+          {activeTab === 'cards' && filteredMoms.length > 0 && (
+            <Button
+              variant={isSelectionMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => isSelectionMode ? clearSelection() : toggleMomSelection(filteredMoms[0]?.id, true)}
+              className="gap-2"
+            >
+              <CheckSquare className="h-4 w-4" />
+              {isSelectionMode ? 'Cancel Selection' : 'Select'}
+            </Button>
+          )}
+        </div>
 
         {/* Card View */}
         <TabsContent value="cards" className="space-y-4">
@@ -770,9 +911,13 @@ export default function MOMPage() {
                       isAdmin={isAdmin}
                       canAgree={canAgree}
                       hasAgreed={hasAgreed}
+                      isSelected={selectedMomIds.has(mom.id)}
+                      isSelectionMode={isSelectionMode}
                       onView={() => {
-                        setSelectedMom(mom);
-                        setViewDialogOpen(true);
+                        if (!isSelectionMode) {
+                          setSelectedMom(mom);
+                          setViewDialogOpen(true);
+                        }
                       }}
                       onEdit={() => {
                         // TODO: Implement edit functionality
@@ -783,6 +928,7 @@ export default function MOMPage() {
                         setSendConfirmOpen(true);
                       }}
                       onAgree={() => handleAgree(mom.id)}
+                      onSelect={(selected) => toggleMomSelection(mom.id, selected)}
                     />
                   );
                 })}
@@ -1149,6 +1295,17 @@ export default function MOMPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedMomIds.size}
+        canApproveCount={bulkActionStats.canApproveCount}
+        canDeleteCount={bulkActionStats.canDeleteCount}
+        onApprove={handleBulkApprove}
+        onDelete={handleBulkDelete}
+        onClearSelection={clearSelection}
+        isProcessing={bulkProcessing}
+      />
     </motion.div>
   );
 }
