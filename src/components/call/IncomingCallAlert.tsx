@@ -21,19 +21,24 @@ interface CallRequest {
   };
 }
 
-// Create ringtone using Web Audio API
-const createRingtone = (audioContext: AudioContext) => {
-  const oscillator = audioContext.createOscillator();
+// Microsoft Teams-style ringtone frequencies and pattern
+const TEAMS_RINGTONE = {
+  // Teams uses a distinctive three-note ascending pattern
+  notes: [
+    { freq: 523.25, duration: 0.15 },  // C5
+    { freq: 659.25, duration: 0.15 },  // E5
+    { freq: 783.99, duration: 0.3 },   // G5
+  ],
+  pauseBetweenRings: 1.5, // seconds
+};
+
+// Create Teams-style ringtone using Web Audio API
+const createTeamsRingtone = (audioContext: AudioContext) => {
   const gainNode = audioContext.createGain();
-  
-  oscillator.connect(gainNode);
   gainNode.connect(audioContext.destination);
-  
-  oscillator.type = 'sine';
-  oscillator.frequency.value = 440; // A4 note
   gainNode.gain.value = 0;
   
-  return { oscillator, gainNode };
+  return { gainNode };
 };
 
 // Request notification permission on load
@@ -67,9 +72,9 @@ export default function IncomingCallAlert() {
   const [incomingCall, setIncomingCall] = useState<CallRequest | null>(null);
   const [responding, setResponding] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const ringtoneIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isPlayingRef = useRef(false);
   const notificationRef = useRef<Notification | null>(null);
 
   // Request notification permission on mount
@@ -77,9 +82,35 @@ export default function IncomingCallAlert() {
     requestNotificationPermission();
   }, []);
 
-  // Ringtone pattern: ring for 1s, silence for 0.5s
+  // Play a single Teams-style ring sequence
+  const playRingSequence = (ctx: AudioContext, gainNode: GainNode) => {
+    let time = ctx.currentTime;
+    
+    TEAMS_RINGTONE.notes.forEach((note) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = note.freq;
+      osc.connect(gainNode);
+      
+      // Smooth envelope for each note
+      gainNode.gain.setValueAtTime(0, time);
+      gainNode.gain.linearRampToValueAtTime(0.25, time + 0.02);
+      gainNode.gain.setValueAtTime(0.25, time + note.duration - 0.02);
+      gainNode.gain.linearRampToValueAtTime(0, time + note.duration);
+      
+      osc.start(time);
+      osc.stop(time + note.duration);
+      
+      time += note.duration;
+    });
+  };
+
+  // Teams-style ringtone with repeating pattern
   const startRingtone = () => {
     try {
+      if (isPlayingRef.current) return;
+      isPlayingRef.current = true;
+      
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContext();
       }
@@ -89,38 +120,20 @@ export default function IncomingCallAlert() {
         ctx.resume();
       }
 
-      const { oscillator, gainNode } = createRingtone(ctx);
-      oscillatorRef.current = oscillator;
+      const { gainNode } = createTeamsRingtone(ctx);
       gainNodeRef.current = gainNode;
       
-      oscillator.start();
+      // Play initial ring
+      playRingSequence(ctx, gainNode);
       
-      let isRinging = true;
+      // Repeat the ring pattern
+      const totalNoteDuration = TEAMS_RINGTONE.notes.reduce((acc, n) => acc + n.duration, 0);
+      const repeatInterval = (totalNoteDuration + TEAMS_RINGTONE.pauseBetweenRings) * 1000;
       
-      // Initial ring
-      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      
-      // Create ring pattern
       ringtoneIntervalRef.current = setInterval(() => {
-        if (!gainNodeRef.current || !audioContextRef.current) return;
-        
-        const now = audioContextRef.current.currentTime;
-        if (isRinging) {
-          // Fade out
-          gainNodeRef.current.gain.setTargetAtTime(0, now, 0.1);
-        } else {
-          // Ring with two-tone pattern
-          gainNodeRef.current.gain.setTargetAtTime(0.3, now, 0.05);
-          if (oscillatorRef.current) {
-            // Alternate between two frequencies for classic ring
-            oscillatorRef.current.frequency.setValueAtTime(
-              oscillatorRef.current.frequency.value === 440 ? 480 : 440,
-              now
-            );
-          }
-        }
-        isRinging = !isRinging;
-      }, 500);
+        if (!audioContextRef.current || !gainNodeRef.current) return;
+        playRingSequence(audioContextRef.current, gainNodeRef.current);
+      }, repeatInterval);
       
     } catch (error) {
       console.error('Error playing ringtone:', error);
@@ -128,17 +141,11 @@ export default function IncomingCallAlert() {
   };
 
   const stopRingtone = () => {
+    isPlayingRef.current = false;
+    
     if (ringtoneIntervalRef.current) {
       clearInterval(ringtoneIntervalRef.current);
       ringtoneIntervalRef.current = null;
-    }
-    
-    if (oscillatorRef.current) {
-      try {
-        oscillatorRef.current.stop();
-        oscillatorRef.current.disconnect();
-      } catch {}
-      oscillatorRef.current = null;
     }
     
     if (gainNodeRef.current) {
