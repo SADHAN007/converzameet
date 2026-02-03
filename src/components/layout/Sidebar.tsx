@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import converzaLogo from '@/assets/converza-logo.png';
+import ThemedLogo from '@/components/branding/ThemedLogo';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -136,11 +136,8 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
           "flex items-center justify-center overflow-hidden transition-all duration-200",
           collapsed ? "w-10" : "flex-1"
         )}>
-          <img 
-            src={converzaLogo} 
-            alt="Converza" 
+          <ThemedLogo 
             className={cn(
-              "object-contain transition-all duration-200",
               collapsed ? "h-10 w-10" : "h-28 w-full max-w-[240px]"
             )}
           />
