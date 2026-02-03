@@ -103,7 +103,7 @@ export default function Auth() {
               <img 
                 src={converzaLogo} 
                 alt="Converza" 
-                className="h-14 object-contain"
+                className="h-40 object-contain"
               />
             </div>
             
