@@ -190,6 +190,47 @@ export type Database = {
           },
         ]
       }
+      mom_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id: string
+          mom_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id?: string
+          mom_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          file_url?: string
+          id?: string
+          mom_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mom_attachments_mom_id_fkey"
+            columns: ["mom_id"]
+            isOneToOne: false
+            referencedRelation: "moms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mom_participants: {
         Row: {
           agreed_at: string | null
