@@ -10,6 +10,7 @@ import Install from "./pages/Install";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import Chat from "./pages/Chat";
+import Messages from "./pages/Messages";
 import CalendarPage from "./pages/Calendar";
 import MOMPage from "./pages/MOM";
 import AdminUsers from "./pages/AdminUsers";
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/chat" element={<Chat />} />
+              <Route path="/messages" element={<Messages />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/mom" element={<MOMPage />} />
               <Route path="/calls" element={<CallHistory />} />
