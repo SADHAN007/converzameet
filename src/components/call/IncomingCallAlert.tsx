@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, PhoneOff, X, User } from 'lucide-react';
+import { Phone, PhoneOff, User, Volume2, VolumeX } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -23,25 +23,21 @@ interface CallRequest {
 
 // Microsoft Teams-style ringtone frequencies and pattern
 const TEAMS_RINGTONE = {
-  // Teams uses a distinctive three-note ascending pattern
   notes: [
     { freq: 523.25, duration: 0.15 },  // C5
     { freq: 659.25, duration: 0.15 },  // E5
     { freq: 783.99, duration: 0.3 },   // G5
   ],
-  pauseBetweenRings: 1.5, // seconds
+  pauseBetweenRings: 1.5,
 };
 
-// Create Teams-style ringtone using Web Audio API
 const createTeamsRingtone = (audioContext: AudioContext) => {
   const gainNode = audioContext.createGain();
   gainNode.connect(audioContext.destination);
   gainNode.gain.value = 0;
-  
   return { gainNode };
 };
 
-// Request notification permission on load
 const requestNotificationPermission = async () => {
   if ('Notification' in window && Notification.permission === 'default') {
     await Notification.requestPermission();
@@ -71,19 +67,21 @@ export default function IncomingCallAlert() {
   const { toast } = useToast();
   const [incomingCall, setIncomingCall] = useState<CallRequest | null>(null);
   const [responding, setResponding] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const ringtoneIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingRef = useRef(false);
   const notificationRef = useRef<Notification | null>(null);
 
-  // Request notification permission on mount
   useEffect(() => {
     requestNotificationPermission();
   }, []);
 
-  // Play a single Teams-style ring sequence
   const playRingSequence = (ctx: AudioContext, gainNode: GainNode) => {
+    if (isMuted) return;
+    
     let time = ctx.currentTime;
     
     TEAMS_RINGTONE.notes.forEach((note) => {
@@ -92,7 +90,6 @@ export default function IncomingCallAlert() {
       osc.frequency.value = note.freq;
       osc.connect(gainNode);
       
-      // Smooth envelope for each note
       gainNode.gain.setValueAtTime(0, time);
       gainNode.gain.linearRampToValueAtTime(0.25, time + 0.02);
       gainNode.gain.setValueAtTime(0.25, time + note.duration - 0.02);
@@ -105,7 +102,6 @@ export default function IncomingCallAlert() {
     });
   };
 
-  // Teams-style ringtone with repeating pattern
   const startRingtone = () => {
     try {
       if (isPlayingRef.current) return;
@@ -123,15 +119,15 @@ export default function IncomingCallAlert() {
       const { gainNode } = createTeamsRingtone(ctx);
       gainNodeRef.current = gainNode;
       
-      // Play initial ring
-      playRingSequence(ctx, gainNode);
+      if (!isMuted) {
+        playRingSequence(ctx, gainNode);
+      }
       
-      // Repeat the ring pattern
       const totalNoteDuration = TEAMS_RINGTONE.notes.reduce((acc, n) => acc + n.duration, 0);
       const repeatInterval = (totalNoteDuration + TEAMS_RINGTONE.pauseBetweenRings) * 1000;
       
       ringtoneIntervalRef.current = setInterval(() => {
-        if (!audioContextRef.current || !gainNodeRef.current) return;
+        if (!audioContextRef.current || !gainNodeRef.current || isMuted) return;
         playRingSequence(audioContextRef.current, gainNodeRef.current);
       }, repeatInterval);
       
@@ -161,7 +157,6 @@ export default function IncomingCallAlert() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check for existing pending calls
       const { data: existingCalls } = await supabase
         .from('call_requests')
         .select('*')
@@ -175,7 +170,6 @@ export default function IncomingCallAlert() {
         await fetchCallerAndSetCall(existingCalls[0]);
       }
 
-      // Subscribe to new calls
       channel = supabase
         .channel('incoming-calls')
         .on(
@@ -209,7 +203,6 @@ export default function IncomingCallAlert() {
     };
 
     const fetchCallerAndSetCall = async (call: CallRequest) => {
-      // Fetch caller profile
       const { data: callerProfile } = await supabase
         .from('profiles_public')
         .select('full_name, email, avatar_url')
@@ -220,6 +213,7 @@ export default function IncomingCallAlert() {
         ...call,
         caller_profile: callerProfile || undefined,
       });
+      setElapsedTime(0);
     };
 
     setupSubscription();
@@ -230,16 +224,27 @@ export default function IncomingCallAlert() {
     };
   }, []);
 
-  // Play/stop ringtone and show notification when call state changes
+  // Timer for call duration display
+  useEffect(() => {
+    if (!incomingCall) {
+      setElapsedTime(0);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [incomingCall]);
+
   useEffect(() => {
     if (incomingCall) {
       startRingtone();
-      // Show desktop notification
       const callerName = incomingCall.caller_profile?.full_name || 'Unknown';
       notificationRef.current = showDesktopNotification(callerName, incomingCall.id);
     } else {
       stopRingtone();
-      // Close notification
       if (notificationRef.current) {
         notificationRef.current.close();
         notificationRef.current = null;
@@ -255,7 +260,6 @@ export default function IncomingCallAlert() {
     };
   }, [incomingCall]);
 
-  // Auto-dismiss expired calls
   useEffect(() => {
     if (!incomingCall) return;
 
@@ -322,96 +326,192 @@ export default function IncomingCallAlert() {
     }
   };
 
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    if (!isMuted) {
+      stopRingtone();
+    } else if (incomingCall) {
+      startRingtone();
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return null;
+    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  };
+
   return (
     <AnimatePresence>
       {incomingCall && (
-        <motion.div
-          initial={{ opacity: 0, y: -100, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -100, scale: 0.9 }}
-          className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm"
-        >
-          <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
-            {/* Animated gradient border */}
-            <motion.div
-              className="absolute inset-0 rounded-2xl"
-              style={{
-                background: 'linear-gradient(90deg, #10b981, #34d399, #10b981)',
-                backgroundSize: '200% 100%',
-              }}
-              animate={{
-                backgroundPosition: ['0% 0%', '200% 0%'],
-              }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-            />
-            
-            <div className="relative bg-card m-[2px] rounded-2xl p-4">
-              <div className="flex items-center gap-4">
-                {/* Caller avatar with pulse */}
-                <div className="relative">
+        <>
+          {/* Backdrop overlay */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[99]"
+            onClick={handleDecline}
+          />
+          
+          {/* Call modal */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[90%] max-w-xs"
+          >
+            <div className="relative bg-card rounded-3xl shadow-2xl overflow-hidden border border-border">
+              {/* Animated background gradient */}
+              <div className="absolute inset-0 overflow-hidden">
+                <motion.div
+                  className="absolute inset-0 opacity-20"
+                  style={{
+                    background: 'radial-gradient(circle at 50% 0%, hsl(var(--primary)) 0%, transparent 70%)',
+                  }}
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.1, 0.2, 0.1],
+                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              </div>
+
+              <div className="relative p-6 flex flex-col items-center text-center">
+                {/* Mute button */}
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={toggleMute}
+                  className="absolute top-4 right-4 h-8 w-8 rounded-full bg-muted/80 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </motion.button>
+
+                {/* Status label */}
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4"
+                >
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Incoming Call
+                  </span>
+                </motion.div>
+
+                {/* Avatar with animated rings */}
+                <div className="relative mb-4">
+                  {/* Outer pulse ring */}
                   <motion.div
-                    className="absolute inset-0 rounded-full bg-emerald-500/30"
-                    animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
+                    className="absolute inset-0 rounded-full border-2 border-primary/30"
+                    animate={{ 
+                      scale: [1, 1.6, 1.6], 
+                      opacity: [0.6, 0, 0] 
+                    }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                    style={{ width: 96, height: 96, left: -8, top: -8 }}
                   />
-                  <Avatar className="h-14 w-14 ring-2 ring-emerald-500">
+                  {/* Middle pulse ring */}
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-2 border-primary/40"
+                    animate={{ 
+                      scale: [1, 1.4, 1.4], 
+                      opacity: [0.8, 0, 0] 
+                    }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: 0.3 }}
+                    style={{ width: 96, height: 96, left: -8, top: -8 }}
+                  />
+                  {/* Inner glow */}
+                  <motion.div
+                    className="absolute inset-0 rounded-full bg-primary/20"
+                    animate={{ 
+                      scale: [1, 1.15, 1],
+                    }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ width: 80, height: 80 }}
+                  />
+                  
+                  <Avatar className="h-20 w-20 ring-4 ring-primary/30 shadow-xl relative z-10">
                     <AvatarImage src={incomingCall.caller_profile?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-gradient-to-br from-emerald-400 to-green-500 text-white text-lg">
-                      {incomingCall.caller_profile?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 
-                       <User className="h-6 w-6" />}
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-xl font-semibold">
+                      {getInitials(incomingCall.caller_profile?.full_name) || <User className="h-8 w-8" />}
                     </AvatarFallback>
                   </Avatar>
                 </div>
 
-                {/* Caller info */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">
-                    {incomingCall.caller_profile?.full_name || 'Unknown Caller'}
-                  </p>
-                  <motion.p 
-                    className="text-sm text-emerald-500 font-medium"
-                    animate={{ opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                  >
-                    Incoming call...
-                  </motion.p>
-                </div>
+                {/* Caller name */}
+                <h3 className="text-xl font-semibold text-foreground mb-1">
+                  {incomingCall.caller_profile?.full_name || 'Unknown Caller'}
+                </h3>
+                
+                {/* Call status with timer */}
+                <motion.p 
+                  className="text-sm text-muted-foreground mb-6 flex items-center gap-2"
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                  </span>
+                  Ringing • {formatTime(elapsedTime)}
+                </motion.p>
 
                 {/* Action buttons */}
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleDecline}
-                    disabled={responding}
-                    className={cn(
-                      'h-12 w-12 rounded-full flex items-center justify-center',
-                      'bg-gradient-to-br from-red-500 to-rose-600 text-white',
-                      'shadow-lg shadow-red-500/25',
-                      'disabled:opacity-50'
-                    )}
-                  >
-                    <PhoneOff className="h-5 w-5" />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleAccept}
-                    disabled={responding}
-                    className={cn(
-                      'h-12 w-12 rounded-full flex items-center justify-center',
-                      'bg-gradient-to-br from-emerald-400 to-green-500 text-white',
-                      'shadow-lg shadow-emerald-500/25',
-                      'disabled:opacity-50'
-                    )}
-                  >
-                    <Phone className="h-5 w-5" />
-                  </motion.button>
+                <div className="flex items-center justify-center gap-6">
+                  {/* Decline button */}
+                  <div className="flex flex-col items-center gap-2">
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={handleDecline}
+                      disabled={responding}
+                      className={cn(
+                        'h-16 w-16 rounded-full flex items-center justify-center',
+                        'bg-gradient-to-br from-destructive to-destructive/80 text-destructive-foreground',
+                        'shadow-lg shadow-destructive/30',
+                        'disabled:opacity-50 transition-shadow hover:shadow-xl hover:shadow-destructive/40'
+                      )}
+                    >
+                      <PhoneOff className="h-7 w-7" />
+                    </motion.button>
+                    <span className="text-xs text-muted-foreground font-medium">Decline</span>
+                  </div>
+
+                  {/* Accept button */}
+                  <div className="flex flex-col items-center gap-2">
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={handleAccept}
+                      disabled={responding}
+                      className={cn(
+                        'h-16 w-16 rounded-full flex items-center justify-center',
+                        'bg-gradient-to-br from-emerald-500 to-green-600 text-white',
+                        'shadow-lg shadow-emerald-500/30',
+                        'disabled:opacity-50 transition-shadow hover:shadow-xl hover:shadow-emerald-500/40'
+                      )}
+                    >
+                      <motion.div
+                        animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
+                        transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 1 }}
+                      >
+                        <Phone className="h-7 w-7" />
+                      </motion.div>
+                    </motion.button>
+                    <span className="text-xs text-muted-foreground font-medium">Accept</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   );
