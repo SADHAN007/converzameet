@@ -126,20 +126,28 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
       style={{ background: 'var(--gradient-sidebar)' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
-        <img 
-          src={converzaLogo} 
-          alt="Converza" 
-          className={cn(
-            "object-contain transition-all duration-200",
-            collapsed ? "h-10 w-10" : "h-12 max-w-[140px]"
-          )}
-        />
+      <div className={cn(
+        "flex items-center justify-between border-b border-sidebar-border px-3",
+        collapsed ? "h-16" : "h-20"
+      )}>
+        <div className={cn(
+          "flex items-center justify-center overflow-hidden transition-all duration-200",
+          collapsed ? "w-10" : "flex-1"
+        )}>
+          <img 
+            src={converzaLogo} 
+            alt="Converza" 
+            className={cn(
+              "object-contain transition-all duration-200",
+              collapsed ? "h-10 w-10" : "h-14 w-full max-w-[180px]"
+            )}
+          />
+        </div>
         <Button
           variant="ghost"
           size="icon"
           onClick={onToggle}
-          className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          className="h-8 w-8 flex-shrink-0 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
         >
           <ChevronLeft className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')} />
         </Button>
