@@ -2,6 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useMissedCalls } from '@/hooks/useMissedCalls';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -15,6 +16,7 @@ import {
   ChevronLeft,
   UserCircle,
   Download,
+  CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import ThemedLogo from '@/components/branding/ThemedLogo';
+import { toast } from 'sonner';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -44,6 +47,16 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
   const location = useLocation();
   const { user, isAdmin, signOut } = useAuth();
   const { missedCount } = useMissedCalls();
+  const { canInstall, isInstalled, promptInstall } = usePWAInstall();
+
+  const handleInstallClick = async () => {
+    if (canInstall) {
+      const success = await promptInstall();
+      if (success) {
+        toast.success('App installed successfully!');
+      }
+    }
+  };
 
   const mainNav: NavItemType[] = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -181,7 +194,45 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
       {/* Bottom links */}
       <div className="px-3 pb-2 space-y-1">
         <NavItem to="/profile" icon={UserCircle} label="My Profile" />
-        <NavItem to="/install" icon={Download} label="Install App" />
+        
+        {/* Direct Install Button or Link to Install Page */}
+        {isInstalled ? (
+          <div className={cn(
+            'nav-link opacity-60 cursor-default',
+            collapsed && 'justify-center'
+          )}>
+            <CheckCircle className="h-5 w-5 flex-shrink-0 text-success" />
+            {!collapsed && (
+              <span className="truncate flex-1 text-success">App Installed</span>
+            )}
+          </div>
+        ) : canInstall ? (
+          collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleInstallClick}
+                  className="nav-link w-full bg-primary/10 hover:bg-primary/20 border border-primary/30"
+                >
+                  <Download className="h-5 w-5 flex-shrink-0 text-primary" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={10}>
+                Install App Now
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={handleInstallClick}
+              className="nav-link w-full bg-primary/10 hover:bg-primary/20 border border-primary/30"
+            >
+              <Download className="h-5 w-5 flex-shrink-0 text-primary" />
+              <span className="truncate flex-1 text-primary font-medium">Install App</span>
+            </button>
+          )
+        ) : (
+          <NavItem to="/install" icon={Download} label="Install App" />
+        )}
       </div>
 
       {/* User section */}
