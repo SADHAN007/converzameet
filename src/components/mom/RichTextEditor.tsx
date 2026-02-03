@@ -1,3 +1,4 @@
+import React, { forwardRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { TextAlign } from '@tiptap/extension-text-align';
@@ -38,6 +39,40 @@ interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
 }
+
+interface ToolbarButtonProps {
+  onClick: () => void;
+  isActive?: boolean;
+  children: React.ReactNode;
+  tooltip: string;
+}
+
+const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
+  ({ onClick, isActive, children, tooltip }, ref) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          ref={ref}
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onClick}
+          className={cn(
+            "h-8 w-8 p-0",
+            isActive && "bg-primary/20 text-primary"
+          )}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        <p className="text-xs">{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
+  )
+);
+
+ToolbarButton.displayName = 'ToolbarButton';
 
 export default function RichTextEditor({ content, onChange, placeholder, className }: RichTextEditorProps) {
   const editor = useEditor({
@@ -91,38 +126,6 @@ export default function RichTextEditor({ content, onChange, placeholder, classNa
   if (!editor) {
     return null;
   }
-
-  const ToolbarButton = ({ 
-    onClick, 
-    isActive, 
-    children, 
-    tooltip 
-  }: { 
-    onClick: () => void; 
-    isActive?: boolean; 
-    children: React.ReactNode;
-    tooltip: string;
-  }) => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onClick}
-          className={cn(
-            "h-8 w-8 p-0",
-            isActive && "bg-primary/20 text-primary"
-          )}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">
-        <p className="text-xs">{tooltip}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
 
   return (
     <TooltipProvider>
