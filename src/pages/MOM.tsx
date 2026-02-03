@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2, Download, AlertCircle, Table2, Paperclip } from 'lucide-react';
+import { Plus, FileText, Search, Calendar, User, Edit, Trash2, Eye, Users, Check, X, Send, Clock, CheckCircle2, Download, AlertCircle, Table2, Paperclip, Share2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -483,6 +483,34 @@ export default function MOMPage() {
     return email.slice(0, 2).toUpperCase();
   };
 
+  const handleShareToWhatsApp = (mom: MOM) => {
+    const projectName = mom.projects?.name || 'Project';
+    const createdDate = format(new Date(mom.created_at), 'MMMM d, yyyy');
+    
+    // Extract text content from HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = mom.content?.html || mom.content?.text || '';
+    const textContent = tempDiv.textContent || tempDiv.innerText || 'No content';
+    
+    // Build WhatsApp message
+    const message = `📋 *Meeting Minutes*
+
+*${mom.title}*
+📁 Project: ${projectName}
+📅 Date: ${createdDate}
+${mom.sent_at ? `✉️ Sent: ${format(new Date(mom.sent_at), 'MMM d, h:mm a')}` : ''}
+
+---
+${textContent.substring(0, 1000)}${textContent.length > 1000 ? '...' : ''}
+
+---
+_Shared from Converza_`;
+
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const isUserParticipant = (mom: MOM) => {
     return mom.participants?.some(p => p.user_id === user?.id);
   };
@@ -864,6 +892,23 @@ export default function MOMPage() {
                                   Send
                                 </Button>
                               )}
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleShareToWhatsApp(mom);
+                                      }}
+                                    >
+                                      <Share2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Share to WhatsApp</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1112,16 +1157,27 @@ export default function MOMPage() {
                       {selectedMom.sent_at && ` • Sent ${format(new Date(selectedMom.sent_at), 'MMM d, h:mm a')}`}
                     </DialogDescription>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    onClick={handleExportPdf}
-                    disabled={exporting}
-                  >
-                    <Download className="h-4 w-4" />
-                    {exporting ? 'Exporting...' : 'Export PDF'}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => handleShareToWhatsApp(selectedMom)}
+                    >
+                      <Share2 className="h-4 w-4" />
+                      WhatsApp
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={handleExportPdf}
+                      disabled={exporting}
+                    >
+                      <Download className="h-4 w-4" />
+                      {exporting ? 'Exporting...' : 'Export PDF'}
+                    </Button>
+                  </div>
                 </div>
               </DialogHeader>
               
