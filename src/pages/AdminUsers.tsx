@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Users, Search, MoreVertical, Mail, Shield, ShieldCheck, UserPlus, Eye, EyeOff, Loader2, LucideIcon, UserX, UserCheck } from 'lucide-react';
+import { Plus, Users, Search, MoreVertical, Mail, Shield, ShieldCheck, UserPlus, Eye, EyeOff, Loader2, LucideIcon, UserX, UserCheck, Circle, Clock } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -44,7 +45,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type AppRole = 'admin' | 'manager' | 'user' | 'client';
 
@@ -67,14 +69,76 @@ const RoleIcon = ({ role, className }: { role: AppRole; className?: string }) =>
   return <IconComponent className={className} />;
 };
 
+interface UserPresence {
+  user_id: string;
+  status: string;
+  last_heartbeat: string;
+}
+
 interface Profile {
   id: string;
   email: string;
   full_name: string | null;
   created_at: string;
+  last_seen?: string | null;
   role?: AppRole;
   is_active?: boolean;
+  presence?: UserPresence | null;
 }
+
+type OnlineStatus = 'online' | 'away' | 'offline';
+
+const OFFLINE_THRESHOLD = 60000; // 1 minute
+const AWAY_THRESHOLD = 300000; // 5 minutes
+
+const getOnlineStatus = (lastHeartbeat: string | null | undefined): OnlineStatus => {
+  if (!lastHeartbeat) return 'offline';
+  
+  const lastSeen = new Date(lastHeartbeat).getTime();
+  const now = Date.now();
+  const diff = now - lastSeen;
+
+  if (diff < OFFLINE_THRESHOLD) return 'online';
+  if (diff < AWAY_THRESHOLD) return 'away';
+  return 'offline';
+};
+
+const StatusIndicator = ({ status, lastSeen }: { status: OnlineStatus; lastSeen?: string | null }) => {
+  const statusConfig = {
+    online: { color: 'bg-emerald-500', label: 'Online', animate: true },
+    away: { color: 'bg-amber-500', label: 'Away', animate: false },
+    offline: { color: 'bg-muted-foreground/50', label: 'Offline', animate: false },
+  };
+
+  const config = statusConfig[status];
+  const lastSeenText = lastSeen 
+    ? `Last seen ${formatDistanceToNow(new Date(lastSeen), { addSuffix: true })}`
+    : 'Never seen';
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="relative flex items-center">
+          <span className={cn(
+            'h-2.5 w-2.5 rounded-full',
+            config.color,
+            config.animate && 'animate-pulse'
+          )} />
+          {config.animate && (
+            <span className={cn(
+              'absolute h-2.5 w-2.5 rounded-full animate-ping opacity-75',
+              config.color
+            )} />
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <p className="font-medium">{config.label}</p>
+        {status !== 'online' && <p className="text-xs text-muted-foreground">{lastSeenText}</p>}
+      </TooltipContent>
+    </Tooltip>
+  );
+};
 
 interface Project {
   id: string;
@@ -116,17 +180,21 @@ export default function AdminUsers() {
 
   const fetchData = async () => {
     try {
-      const [profilesRes, projectsRes, rolesRes] = await Promise.all([
+      const [profilesRes, projectsRes, rolesRes, presenceRes] = await Promise.all([
         supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('projects').select('id, name, color').order('name'),
         supabase.from('user_roles').select('user_id, role'),
+        supabase.from('user_presence').select('*'),
       ]);
 
       if (profilesRes.data && rolesRes.data) {
         const roleMap = new Map(rolesRes.data.map(r => [r.user_id, r.role as AppRole]));
+        const presenceMap = new Map(presenceRes.data?.map(p => [p.user_id, p]) || []);
+        
         setProfiles(profilesRes.data.map(p => ({
           ...p,
-          role: roleMap.get(p.id) || 'user'
+          role: roleMap.get(p.id) || 'user',
+          presence: presenceMap.get(p.id) || null,
         })));
       }
       if (projectsRes.data) setProjects(projectsRes.data);
@@ -136,6 +204,49 @@ export default function AdminUsers() {
       setLoading(false);
     }
   };
+
+  // Subscribe to realtime presence updates
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const channel = supabase
+      .channel('user-presence-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_presence',
+        },
+        (payload) => {
+          const updatedPresence = payload.new as UserPresence;
+          setProfiles(prev => prev.map(p => 
+            p.id === updatedPresence.user_id 
+              ? { ...p, presence: updatedPresence }
+              : p
+          ));
+        }
+      )
+      .subscribe();
+
+    // Refresh presence data every 30 seconds
+    const refreshInterval = setInterval(() => {
+      supabase.from('user_presence').select('*').then(({ data }) => {
+        if (data) {
+          const presenceMap = new Map(data.map(p => [p.user_id, p]));
+          setProfiles(prev => prev.map(p => ({
+            ...p,
+            presence: presenceMap.get(p.id) || p.presence,
+          })));
+        }
+      });
+    }, 30000);
+
+    return () => {
+      channel.unsubscribe();
+      clearInterval(refreshInterval);
+    };
+  }, [isAdmin]);
 
   const handleAssignToProject = async () => {
     if (!selectedUser || !selectedProjectId) return;
@@ -359,11 +470,21 @@ export default function AdminUsers() {
                 <CardContent className="p-3 sm:p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <Avatar className="h-12 w-12 flex-shrink-0">
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          {getInitials(profile.full_name, profile.email)}
-                        </AvatarFallback>
-                      </Avatar>
+                      {/* Avatar with status indicator */}
+                      <div className="relative flex-shrink-0">
+                        <Avatar className="h-12 w-12">
+                          <AvatarFallback className="bg-primary text-primary-foreground">
+                            {getInitials(profile.full_name, profile.email)}
+                          </AvatarFallback>
+                        </Avatar>
+                        {/* Status indicator positioned at bottom-right of avatar */}
+                        <div className="absolute -bottom-0.5 -right-0.5 p-0.5 bg-card rounded-full">
+                          <StatusIndicator 
+                            status={getOnlineStatus(profile.presence?.last_heartbeat)} 
+                            lastSeen={profile.presence?.last_heartbeat || profile.last_seen}
+                          />
+                        </div>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className={`font-semibold truncate ${profile.is_active === false ? 'text-muted-foreground' : 'text-foreground'}`}>
@@ -389,9 +510,18 @@ export default function AdminUsers() {
                           <Mail className="h-3.5 w-3.5" />
                           <span className="truncate">{profile.email}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Joined {format(new Date(profile.created_at), 'MMM d, yyyy')}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                          <span>Joined {format(new Date(profile.created_at), 'MMM d, yyyy')}</span>
+                          {profile.presence?.last_heartbeat && getOnlineStatus(profile.presence.last_heartbeat) !== 'online' && (
+                            <>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatDistanceToNow(new Date(profile.presence.last_heartbeat), { addSuffix: true })}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">

@@ -3,6 +3,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Phone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePresence } from '@/hooks/usePresence';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -16,6 +17,9 @@ export default function DashboardLayout() {
   const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Track user presence for online/offline status
+  usePresence();
 
   if (isLoading) {
     return <FullPageLoader text="Loading your workspace..." />;

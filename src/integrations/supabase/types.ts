@@ -506,6 +506,7 @@ export type Database = {
           id: string
           is_active: boolean
           job_title: string | null
+          last_seen: string | null
           phone: string | null
           state: string | null
           street_address: string | null
@@ -523,6 +524,7 @@ export type Database = {
           id: string
           is_active?: boolean
           job_title?: string | null
+          last_seen?: string | null
           phone?: string | null
           state?: string | null
           street_address?: string | null
@@ -540,6 +542,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           job_title?: string | null
+          last_seen?: string | null
           phone?: string | null
           state?: string | null
           street_address?: string | null
@@ -634,6 +637,30 @@ export type Database = {
           endpoint?: string
           id?: string
           p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_presence: {
+        Row: {
+          created_at: string
+          id: string
+          last_heartbeat: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_heartbeat?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_heartbeat?: string
+          status?: string
           user_id?: string
         }
         Relationships: []
