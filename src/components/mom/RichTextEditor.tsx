@@ -21,12 +21,16 @@ import {
   Redo,
   Trash2,
   Plus,
-  Minus
+  Minus,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useSpeechToText } from '@/hooks/useSpeechToText';
+import { toast } from 'sonner';
 
 interface RichTextEditorProps {
   content: string;
@@ -66,6 +70,22 @@ export default function RichTextEditor({ content, onChange, placeholder, classNa
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] p-4',
       },
     },
+  });
+
+  // Speech to text hook
+  const { isListening, isSupported, toggleListening } = useSpeechToText({
+    onResult: (transcript) => {
+      if (editor && transcript) {
+        // Insert transcribed text at cursor position
+        editor.chain().focus().insertContent(transcript + ' ').run();
+        toast.success('Text added from voice');
+      }
+    },
+    onError: (error) => {
+      toast.error(error);
+    },
+    continuous: true,
+    language: 'en-US'
   });
 
   if (!editor) {
@@ -216,7 +236,41 @@ export default function RichTextEditor({ content, onChange, placeholder, classNa
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </ToolbarButton>
-            </>
+          </>
+          )}
+
+          <Separator orientation="vertical" className="h-6 mx-1" />
+
+          {/* Voice to Text */}
+          {isSupported ? (
+            <ToolbarButton
+              onClick={toggleListening}
+              isActive={isListening}
+              tooltip={isListening ? "Stop Recording" : "Start Voice Input"}
+            >
+              {isListening ? (
+                <MicOff className="h-4 w-4 text-destructive animate-pulse" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+            </ToolbarButton>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled
+                  className="h-8 w-8 p-0 opacity-50"
+                >
+                  <Mic className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">Voice input not supported in this browser</p>
+              </TooltipContent>
+            </Tooltip>
           )}
 
           <div className="flex-1" />
