@@ -422,6 +422,99 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* User-wise Performance Cards */}
+      {analytics.teamPerformance.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Individual Performance Breakdown</h3>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {analytics.teamPerformance.map((member) => {
+              const statusBreakdown = filteredLeads
+                .filter((l) => l.assigned_to === teamMembers.find(t => t.full_name === member.fullName || t.email === member.fullName)?.id)
+                .reduce((acc, lead) => {
+                  acc[lead.status] = (acc[lead.status] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+
+              const pendingFollowUps = filteredLeads.filter(
+                (l) => l.assigned_to === teamMembers.find(t => t.full_name === member.fullName || t.email === member.fullName)?.id 
+                  && l.follow_up_date 
+                  && new Date(l.follow_up_date) <= new Date()
+              ).length;
+
+              return (
+                <Card key={member.fullName} className="overflow-hidden">
+                  <CardHeader className="pb-2 bg-muted/30">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground font-bold">
+                        {member.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-base truncate">{member.fullName}</CardTitle>
+                        <p className="text-xs text-muted-foreground">{member.total} leads assigned</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-4">
+                    {/* Key Metrics */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="text-center p-2 rounded-lg bg-muted/50">
+                        <div className="text-lg font-bold text-primary">{member.rate}%</div>
+                        <div className="text-xs text-muted-foreground">Conversion</div>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-muted/50">
+                        <div className="text-lg font-bold text-primary">{formatCurrency(member.dealValue)}</div>
+                        <div className="text-xs text-muted-foreground">Revenue</div>
+                      </div>
+                    </div>
+
+                    {/* Status Breakdown */}
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status Breakdown</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(statusBreakdown).map(([status, count]) => (
+                          <span
+                            key={status}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                            style={{
+                              backgroundColor: `${STATUS_COLORS[status]}20`,
+                              color: STATUS_COLORS[status],
+                            }}
+                          >
+                            {STATUS_LABELS[status] || status}: {count}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Converted</span>
+                        <span className="font-medium">{member.converted} / {member.total}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{ width: `${member.rate}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Pending Follow-ups */}
+                    {pendingFollowUps > 0 && (
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 text-destructive">
+                        <CalendarIcon className="h-4 w-4" />
+                        <span className="text-xs font-medium">{pendingFollowUps} pending follow-ups</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
