@@ -244,6 +244,38 @@ export function useLeads() {
     }
   };
 
+  const bulkAssignLeads = async (leadIds: string[], userId: string) => {
+    if (!user) return { error: 'Not authenticated' };
+
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({
+          assigned_to: userId,
+          assigned_by: user.id,
+          assigned_at: new Date().toISOString(),
+        })
+        .in('id', leadIds);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `${leadIds.length} lead${leadIds.length !== 1 ? 's' : ''} assigned successfully`,
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      console.error('Error bulk assigning leads:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to assign leads',
+        variant: 'destructive',
+      });
+      return { error: error.message };
+    }
+  };
+
   const bulkImportLeads = async (leadsData: Partial<Lead>[]) => {
     if (!user) return { success: 0, errors: ['Not authenticated'] };
 
@@ -307,6 +339,7 @@ export function useLeads() {
     updateLead,
     deleteLead,
     assignLead,
+    bulkAssignLeads,
     bulkImportLeads,
     refetch: fetchLeads,
   };
