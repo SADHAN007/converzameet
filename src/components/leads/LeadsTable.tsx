@@ -13,8 +13,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Lead, LEAD_STATUS_OPTIONS, LeadStatus } from '@/types/leads';
 import { LeadStatusBadge } from './LeadStatusBadge';
 import { AssignLeadDialog } from './AssignLeadDialog';
+import { ConvertLeadDialog } from './ConvertLeadDialog';
 import { format } from 'date-fns';
-import { ExternalLink, Trash2, UserPlus } from 'lucide-react';
+import { ExternalLink, Trash2, UserPlus, IndianRupee } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TeamMember {
@@ -26,7 +27,7 @@ interface TeamMember {
 
 interface LeadsTableProps {
   leads: Lead[];
-  onStatusChange: (id: string, status: LeadStatus) => void;
+  onStatusChange: (id: string, status: LeadStatus, extras?: { deal_value?: number | null; conversion_date?: string | null }) => void;
   onDelete: (id: string) => void;
   onAssign: (leadId: string, userId: string) => Promise<{ error: string | null }>;
   isAdmin: boolean;
@@ -34,6 +35,7 @@ interface LeadsTableProps {
 
 export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin }: LeadsTableProps) {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [assignees, setAssignees] = useState<Record<string, TeamMember>>({});
 
@@ -68,11 +70,37 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
     setAssignDialogOpen(true);
   };
 
+  const handleStatusSelect = (lead: Lead, newStatus: LeadStatus) => {
+    if (newStatus === 'converted' && lead.status !== 'converted') {
+      setSelectedLead(lead);
+      setConvertDialogOpen(true);
+    } else {
+      onStatusChange(lead.id, newStatus);
+    }
+  };
+
+  const handleConvert = async (dealValue: number | null, conversionDate: string) => {
+    if (selectedLead) {
+      onStatusChange(selectedLead.id, 'converted', {
+        deal_value: dealValue,
+        conversion_date: conversionDate,
+      });
+    }
+  };
+
   const getInitials = (name?: string | null, email?: string | null) => {
     if (name) {
       return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     }
     return email?.slice(0, 2).toUpperCase() || 'U';
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(value);
   };
 
   if (leads.length === 0) {
@@ -96,6 +124,7 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
               <TableHead>Requirements</TableHead>
               <TableHead>Assigned To</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Deal Value</TableHead>
               <TableHead>Follow-up</TableHead>
               <TableHead>Created</TableHead>
               {isAdmin && <TableHead className="text-right">Actions</TableHead>}
@@ -199,7 +228,7 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
                   <TableCell>
                     <Select
                       value={lead.status}
-                      onValueChange={(value) => onStatusChange(lead.id, value as LeadStatus)}
+                      onValueChange={(value) => handleStatusSelect(lead, value as LeadStatus)}
                     >
                       <SelectTrigger className="w-[150px] h-8">
                         <LeadStatusBadge status={lead.status} />
@@ -212,6 +241,23 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
                         ))}
                       </SelectContent>
                     </Select>
+                  </TableCell>
+                  <TableCell>
+                    {lead.deal_value ? (
+                      <div className="flex items-center gap-1 text-green-600 font-medium">
+                        <IndianRupee className="h-3 w-3" />
+                        {formatCurrency(lead.deal_value).replace('₹', '')}
+                      </div>
+                    ) : lead.status === 'converted' ? (
+                      <span className="text-muted-foreground text-sm">Not set</span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                    {lead.conversion_date && (
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(lead.conversion_date), 'MMM dd')}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     {lead.follow_up_date ? (
@@ -245,14 +291,22 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
       </div>
 
       {selectedLead && (
-        <AssignLeadDialog
-          open={assignDialogOpen}
-          onOpenChange={setAssignDialogOpen}
-          leadId={selectedLead.id}
-          leadName={selectedLead.company_name}
-          currentAssignee={selectedLead.assigned_to}
-          onAssign={onAssign}
-        />
+        <>
+          <AssignLeadDialog
+            open={assignDialogOpen}
+            onOpenChange={setAssignDialogOpen}
+            leadId={selectedLead.id}
+            leadName={selectedLead.company_name}
+            currentAssignee={selectedLead.assigned_to}
+            onAssign={onAssign}
+          />
+          <ConvertLeadDialog
+            open={convertDialogOpen}
+            onOpenChange={setConvertDialogOpen}
+            leadName={selectedLead.company_name}
+            onConvert={handleConvert}
+          />
+        </>
       )}
     </>
   );
