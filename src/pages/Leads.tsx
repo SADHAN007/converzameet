@@ -23,6 +23,7 @@ export default function Leads() {
     createLead,
     updateLead,
     deleteLead,
+    assignLead,
   } = useLeads();
 
   const handleStatusChange = async (id: string, status: LeadStatus) => {
@@ -117,6 +118,7 @@ export default function Leads() {
                 leads={leads}
                 onStatusChange={handleStatusChange}
                 onDelete={handleDelete}
+                onAssign={assignLead}
                 isAdmin={isAdmin}
               />
 
