@@ -8,10 +8,14 @@ import {
   TrendingUp,
   ArrowRight,
   Sparkles,
+  Users,
+  Target,
+  Phone,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
@@ -41,10 +45,27 @@ interface Meeting {
   projects?: { name: string; color: string };
 }
 
+interface LeadStats {
+  total: number;
+  newLeads: number;
+  converted: number;
+  followUpRequired: number;
+  conversionRate: number;
+  todayFollowUps: number;
+}
+
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [leadStats, setLeadStats] = useState<LeadStats>({
+    total: 0,
+    newLeads: 0,
+    converted: 0,
+    followUpRequired: 0,
+    conversionRate: 0,
+    todayFollowUps: 0,
+  });
   const [stats, setStats] = useState({
     totalProjects: 0,
     totalMeetings: 0,
@@ -84,10 +105,11 @@ export default function Dashboard() {
         }
 
         // Fetch stats
-        const [projectCount, meetingCount, momCount] = await Promise.all([
+        const [projectCount, meetingCount, momCount, leadsRes] = await Promise.all([
           supabase.from('projects').select('id', { count: 'exact', head: true }),
           supabase.from('meetings').select('id', { count: 'exact', head: true }).gte('start_time', now),
           supabase.from('moms').select('id', { count: 'exact', head: true }),
+          supabase.from('leads').select('status, follow_up_date'),
         ]);
 
         setStats({
@@ -96,6 +118,26 @@ export default function Dashboard() {
           totalMoms: momCount.count || 0,
           unreadMessages: 0,
         });
+
+        // Calculate lead stats
+        if (leadsRes.data) {
+          const leads = leadsRes.data;
+          const total = leads.length;
+          const newLeads = leads.filter(l => l.status === 'new_lead').length;
+          const converted = leads.filter(l => l.status === 'converted').length;
+          const followUpRequired = leads.filter(l => l.status === 'follow_up_required').length;
+          const today = new Date().toISOString().split('T')[0];
+          const todayFollowUps = leads.filter(l => l.follow_up_date === today).length;
+          
+          setLeadStats({
+            total,
+            newLeads,
+            converted,
+            followUpRequired,
+            conversionRate: total > 0 ? (converted / total) * 100 : 0,
+            todayFollowUps,
+          });
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -124,10 +166,10 @@ export default function Dashboard() {
   }));
 
   const statCards = [
-    { label: 'Active Projects', value: stats.totalProjects, icon: FolderKanban, color: 'bg-primary' },
-    { label: 'Upcoming Meetings', value: stats.totalMeetings, icon: Calendar, color: 'bg-accent' },
-    { label: 'Meeting Notes', value: stats.totalMoms, icon: FileText, color: 'bg-success' },
-    { label: 'Messages', value: stats.unreadMessages, icon: MessageSquare, color: 'bg-warning' },
+    { label: 'Total Leads', value: leadStats.total, icon: Users, color: 'bg-primary' },
+    { label: 'Conversion Rate', value: `${leadStats.conversionRate.toFixed(1)}%`, icon: Target, color: 'bg-accent' },
+    { label: 'New Leads', value: leadStats.newLeads, icon: TrendingUp, color: 'bg-success' },
+    { label: 'Follow-ups Today', value: leadStats.todayFollowUps, icon: Phone, color: 'bg-warning' },
   ];
 
   if (loading) {
@@ -205,6 +247,75 @@ export default function Dashboard() {
           />
         ))}
       </div>
+
+      {/* Leads Overview Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-base sm:text-lg">Leads Pipeline</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Overview of your sales funnel</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" asChild className="text-xs">
+              <Link to="/leads">
+                <span className="hidden sm:inline mr-1">View all</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">New</span>
+                  <span className="text-sm font-semibold text-primary">{leadStats.newLeads}</span>
+                </div>
+                <Progress value={leadStats.total > 0 ? (leadStats.newLeads / leadStats.total) * 100 : 0} className="h-2" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Follow-up</span>
+                  <span className="text-sm font-semibold text-warning">{leadStats.followUpRequired}</span>
+                </div>
+                <Progress value={leadStats.total > 0 ? (leadStats.followUpRequired / leadStats.total) * 100 : 0} className="h-2 [&>div]:bg-warning" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Converted</span>
+                  <span className="text-sm font-semibold text-success">{leadStats.converted}</span>
+                </div>
+                <Progress value={leadStats.total > 0 ? (leadStats.converted / leadStats.total) * 100 : 0} className="h-2 [&>div]:bg-success" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Total</span>
+                  <span className="text-sm font-semibold">{leadStats.total}</span>
+                </div>
+                <Progress value={100} className="h-2 [&>div]:bg-muted-foreground" />
+              </div>
+            </div>
+            {leadStats.todayFollowUps > 0 && (
+              <motion.div 
+                className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/20"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-warning" />
+                  <span className="text-sm font-medium text-warning">
+                    {leadStats.todayFollowUps} follow-up{leadStats.todayFollowUps > 1 ? 's' : ''} scheduled for today
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
