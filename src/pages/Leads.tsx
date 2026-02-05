@@ -26,7 +26,7 @@ export default function Leads() {
   const { isBdMarketing } = useUserRole();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   
-  const canCreateLead = isAdmin || isBdMarketing;
+  // All authenticated users can create leads
   const {
     leads,
     loading,
@@ -80,7 +80,7 @@ export default function Leads() {
         </div>
         <div className="flex items-center gap-2">
           <LeadsImportExport leads={leads} onImport={bulkImportLeads} />
-          {canCreateLead && <CreateLeadDialog onSubmit={createLead} />}
+          <CreateLeadDialog onSubmit={createLead} />
         </div>
       </div>
 
