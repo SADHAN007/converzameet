@@ -10,11 +10,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Lead, LEAD_STATUS_OPTIONS, LeadStatus } from '@/types/leads';
 import { LeadStatusBadge } from './LeadStatusBadge';
 import { AssignLeadDialog } from './AssignLeadDialog';
 import { ConvertLeadDialog } from './ConvertLeadDialog';
 import { SetReminderDialog } from './SetReminderDialog';
+import { BulkAssignBar } from './BulkAssignBar';
 import { format } from 'date-fns';
 import { ExternalLink, Trash2, UserPlus, IndianRupee } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,14 +33,17 @@ interface LeadsTableProps {
   onStatusChange: (id: string, status: LeadStatus, extras?: { deal_value?: number | null; conversion_date?: string | null }) => void;
   onDelete: (id: string) => void;
   onAssign: (leadId: string, userId: string) => Promise<{ error: string | null }>;
+  onBulkAssign: (leadIds: string[], userId: string) => Promise<{ error: string | null }>;
   isAdmin: boolean;
 }
 
-export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin }: LeadsTableProps) {
+export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAssign, isAdmin }: LeadsTableProps) {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [assignees, setAssignees] = useState<Record<string, TeamMember>>({});
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
 
   // Fetch assignee profiles for display
   useEffect(() => {
@@ -104,6 +109,33 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
     }).format(value);
   };
 
+  const toggleLeadSelection = (leadId: string) => {
+    const newSelection = new Set(selectedLeads);
+    if (newSelection.has(leadId)) {
+      newSelection.delete(leadId);
+    } else {
+      newSelection.add(leadId);
+    }
+    setSelectedLeads(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLeads.size === leads.length) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(leads.map(l => l.id)));
+    }
+  };
+
+  const handleBulkAssign = async (userId: string) => {
+    setIsBulkAssigning(true);
+    const result = await onBulkAssign(Array.from(selectedLeads), userId);
+    setIsBulkAssigning(false);
+    if (!result.error) {
+      setSelectedLeads(new Set());
+    }
+  };
+
   if (leads.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -118,6 +150,15 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
         <Table>
           <TableHeader>
             <TableRow>
+              {isAdmin && (
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={selectedLeads.size === leads.length && leads.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+              )}
               <TableHead>Serial No.</TableHead>
               <TableHead>Company</TableHead>
               <TableHead>Contact</TableHead>
@@ -136,7 +177,16 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
               const assignee = lead.assigned_to ? assignees[lead.assigned_to] : null;
 
               return (
-                <TableRow key={lead.id}>
+                <TableRow key={lead.id} className={selectedLeads.has(lead.id) ? 'bg-muted/50' : ''}>
+                  {isAdmin && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedLeads.has(lead.id)}
+                        onCheckedChange={() => toggleLeadSelection(lead.id)}
+                        aria-label={`Select ${lead.company_name}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-mono text-sm">{lead.serial_number}</TableCell>
                   <TableCell>
                     <div className="font-medium">{lead.company_name}</div>
@@ -311,6 +361,15 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
             onConvert={handleConvert}
           />
         </>
+      )}
+
+      {isAdmin && (
+        <BulkAssignBar
+          selectedCount={selectedLeads.size}
+          onAssign={handleBulkAssign}
+          onClearSelection={() => setSelectedLeads(new Set())}
+          isProcessing={isBulkAssigning}
+        />
       )}
     </>
   );

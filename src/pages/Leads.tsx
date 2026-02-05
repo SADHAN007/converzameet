@@ -40,6 +40,7 @@ export default function Leads() {
     updateLead,
     deleteLead,
     assignLead,
+    bulkAssignLeads,
     bulkImportLeads,
   } = useLeads();
 
@@ -132,6 +133,7 @@ export default function Leads() {
                     onStatusChange={handleStatusChange}
                     onDelete={handleDelete}
                     onAssign={assignLead}
+                    onBulkAssign={bulkAssignLeads}
                     isAdmin={isAdmin}
                   />
 
