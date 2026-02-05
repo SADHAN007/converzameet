@@ -41,6 +41,7 @@ export interface LeadFilters {
   assignedTo: string | 'all';
   dateFrom: string;
   dateTo: string;
+  viewMode: 'my' | 'all';
 }
 
 export const LEAD_STATUS_OPTIONS: { value: LeadStatus; label: string; color: string }[] = [

@@ -1,8 +1,10 @@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Search, X } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Search, X, Users, User } from 'lucide-react';
 import { LeadFilters as LeadFiltersType, LEAD_STATUS_OPTIONS } from '@/types/leads';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TeamMember {
   id: string;
@@ -17,6 +19,8 @@ interface LeadFiltersProps {
 }
 
 export function LeadFilters({ filters, onFiltersChange, teamMembers = [] }: LeadFiltersProps) {
+  const { isAdmin } = useAuth();
+
   const handleReset = () => {
     onFiltersChange({
       search: '',
@@ -24,6 +28,7 @@ export function LeadFilters({ filters, onFiltersChange, teamMembers = [] }: Lead
       assignedTo: 'all',
       dateFrom: '',
       dateTo: '',
+      viewMode: isAdmin ? 'all' : 'my',
     });
   };
 
@@ -36,6 +41,26 @@ export function LeadFilters({ filters, onFiltersChange, teamMembers = [] }: Lead
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:flex-wrap">
+      {isAdmin && (
+        <ToggleGroup
+          type="single"
+          value={filters.viewMode}
+          onValueChange={(value) => {
+            if (value) onFiltersChange({ ...filters, viewMode: value as 'my' | 'all' });
+          }}
+          className="border rounded-md"
+        >
+          <ToggleGroupItem value="all" aria-label="All Leads" className="gap-1.5 px-3">
+            <Users className="h-4 w-4" />
+            All Leads
+          </ToggleGroupItem>
+          <ToggleGroupItem value="my" aria-label="My Leads" className="gap-1.5 px-3">
+            <User className="h-4 w-4" />
+            My Leads
+          </ToggleGroupItem>
+        </ToggleGroup>
+      )}
+
       <div className="relative flex-1 min-w-[200px]">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input

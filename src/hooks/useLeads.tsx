@@ -19,6 +19,7 @@ export function useLeads() {
     assignedTo: 'all',
     dateFrom: '',
     dateTo: '',
+    viewMode: 'all',
   });
 
   const fetchLeads = useCallback(async () => {
@@ -51,6 +52,11 @@ export function useLeads() {
 
       if (filters.dateTo) {
         query = query.lte('created_at', filters.dateTo);
+      }
+
+      // View mode filter (for admins switching between All/My leads)
+      if (filters.viewMode === 'my' && isAdmin) {
+        query = query.or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`);
       }
 
       // Pagination
