@@ -1,0 +1,283 @@
+import { useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Lead } from '@/types/leads';
+import { TrendingUp, Users, Target, Award, BarChart3 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
+
+interface TeamMember {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
+interface LeadsAnalyticsProps {
+  leads: Lead[];
+  teamMembers: TeamMember[];
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  new_lead: 'hsl(var(--primary))',
+  contacted: 'hsl(var(--accent))',
+  follow_up_required: 'hsl(38, 92%, 50%)',
+  meeting_scheduled: 'hsl(var(--secondary))',
+  proposal_sent: 'hsl(280, 65%, 60%)',
+  converted: 'hsl(142, 76%, 36%)',
+  lost: 'hsl(var(--destructive))',
+  not_interested: 'hsl(var(--muted-foreground))',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  new_lead: 'New',
+  contacted: 'Contacted',
+  follow_up_required: 'Follow-up',
+  meeting_scheduled: 'Meeting',
+  proposal_sent: 'Proposal',
+  converted: 'Converted',
+  lost: 'Lost',
+  not_interested: 'Not Interested',
+};
+
+export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
+  const analytics = useMemo(() => {
+    const total = leads.length;
+    const converted = leads.filter((l) => l.status === 'converted').length;
+    const lost = leads.filter((l) => l.status === 'lost' || l.status === 'not_interested').length;
+    const active = total - converted - lost;
+    const conversionRate = total > 0 ? (converted / total) * 100 : 0;
+
+    // Status distribution
+    const statusCounts: Record<string, number> = {};
+    leads.forEach((lead) => {
+      statusCounts[lead.status] = (statusCounts[lead.status] || 0) + 1;
+    });
+
+    const statusData = Object.entries(statusCounts).map(([status, count]) => ({
+      name: STATUS_LABELS[status] || status,
+      value: count,
+      color: STATUS_COLORS[status] || 'hsl(var(--muted))',
+    }));
+
+    // Team performance
+    const teamPerformance = teamMembers.map((member) => {
+      const memberLeads = leads.filter((l) => l.assigned_to === member.id);
+      const memberConverted = memberLeads.filter((l) => l.status === 'converted').length;
+      const memberTotal = memberLeads.length;
+      const memberRate = memberTotal > 0 ? (memberConverted / memberTotal) * 100 : 0;
+
+      return {
+        name: member.full_name?.split(' ')[0] || member.email?.split('@')[0] || 'Unknown',
+        fullName: member.full_name || member.email || 'Unknown',
+        total: memberTotal,
+        converted: memberConverted,
+        rate: Math.round(memberRate),
+      };
+    }).filter((m) => m.total > 0).sort((a, b) => b.total - a.total);
+
+    // Unassigned leads
+    const unassignedCount = leads.filter((l) => !l.assigned_to).length;
+
+    return {
+      total,
+      converted,
+      lost,
+      active,
+      conversionRate,
+      statusData,
+      teamPerformance,
+      unassignedCount,
+    };
+  }, [leads, teamMembers]);
+
+  return (
+    <div className="space-y-6">
+      {/* Key Metrics */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.total}</div>
+            <p className="text-xs text-muted-foreground">
+              {analytics.unassignedCount} unassigned
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {analytics.conversionRate.toFixed(1)}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {analytics.converted} of {analytics.total} leads
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">{analytics.active}</div>
+            <p className="text-xs text-muted-foreground">In pipeline</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Top Performer</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {analytics.teamPerformance.length > 0 ? (
+              <>
+                <div className="text-2xl font-bold truncate">
+                  {analytics.teamPerformance[0].name}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {analytics.teamPerformance[0].total} leads, {analytics.teamPerformance[0].rate}% conv.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">-</div>
+                <p className="text-xs text-muted-foreground">No assignments yet</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Status Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Lead Status Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analytics.statusData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={analytics.statusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                    labelLine={false}
+                  >
+                    {analytics.statusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[280px] text-muted-foreground">
+                No data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Team Performance */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Team Performance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analytics.teamPerformance.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={analytics.teamPerformance} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={80}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip 
+                    formatter={(value, name) => [
+                      value,
+                      name === 'total' ? 'Total Leads' : 'Converted'
+                    ]}
+                    labelFormatter={(label) => {
+                      const member = analytics.teamPerformance.find(m => m.name === label);
+                      return member?.fullName || label;
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="converted" name="Converted" fill="hsl(142, 76%, 36%)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[280px] text-muted-foreground">
+                No team assignments yet
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Team Leaderboard */}
+      {analytics.teamPerformance.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Team Leaderboard</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {analytics.teamPerformance.slice(0, 5).map((member, index) => (
+                <div key={member.fullName} className="flex items-center gap-4">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{member.fullName}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {member.total} leads • {member.converted} converted
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-green-600">{member.rate}%</div>
+                    <div className="text-xs text-muted-foreground">conversion</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
