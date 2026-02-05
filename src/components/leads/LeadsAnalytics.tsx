@@ -1,7 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Lead } from '@/types/leads';
-import { TrendingUp, Users, Target, Award, BarChart3 } from 'lucide-react';
+import { TrendingUp, Users, Target, Award, BarChart3, CalendarIcon, X } from 'lucide-react';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { cn } from '@/lib/utils';
 import {
   BarChart,
   Bar,
@@ -50,15 +55,46 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+
+  // Filter leads by date range
+  const filteredLeads = useMemo(() => {
+    if (!dateFrom && !dateTo) return leads;
+    
+    return leads.filter((lead) => {
+      const leadDate = new Date(lead.created_at);
+      
+      if (dateFrom && dateTo) {
+        return isWithinInterval(leadDate, {
+          start: startOfDay(dateFrom),
+          end: endOfDay(dateTo),
+        });
+      }
+      if (dateFrom) {
+        return leadDate >= startOfDay(dateFrom);
+      }
+      if (dateTo) {
+        return leadDate <= endOfDay(dateTo);
+      }
+      return true;
+    });
+  }, [leads, dateFrom, dateTo]);
+
+  const clearDateFilters = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
   const analytics = useMemo(() => {
-    const total = leads.length;
-    const converted = leads.filter((l) => l.status === 'converted').length;
-    const lost = leads.filter((l) => l.status === 'lost' || l.status === 'not_interested').length;
+    const total = filteredLeads.length;
+    const converted = filteredLeads.filter((l) => l.status === 'converted').length;
+    const lost = filteredLeads.filter((l) => l.status === 'lost' || l.status === 'not_interested').length;
     const active = total - converted - lost;
     const conversionRate = total > 0 ? (converted / total) * 100 : 0;
 
     // Deal value calculations
-    const totalDealValue = leads
+    const totalDealValue = filteredLeads
       .filter((l) => l.status === 'converted' && l.deal_value)
       .reduce((sum, l) => sum + (l.deal_value || 0), 0);
     
@@ -66,7 +102,7 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
 
     // Status distribution
     const statusCounts: Record<string, number> = {};
-    leads.forEach((lead) => {
+    filteredLeads.forEach((lead) => {
       statusCounts[lead.status] = (statusCounts[lead.status] || 0) + 1;
     });
 
@@ -78,7 +114,7 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
 
     // Team performance with deal values
     const teamPerformance = teamMembers.map((member) => {
-      const memberLeads = leads.filter((l) => l.assigned_to === member.id);
+      const memberLeads = filteredLeads.filter((l) => l.assigned_to === member.id);
       const memberConverted = memberLeads.filter((l) => l.status === 'converted').length;
       const memberTotal = memberLeads.length;
       const memberRate = memberTotal > 0 ? (memberConverted / memberTotal) * 100 : 0;
@@ -97,7 +133,7 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
     }).filter((m) => m.total > 0).sort((a, b) => b.dealValue - a.dealValue);
 
     // Unassigned leads
-    const unassignedCount = leads.filter((l) => !l.assigned_to).length;
+    const unassignedCount = filteredLeads.filter((l) => !l.assigned_to).length;
 
     return {
       total,
@@ -111,7 +147,7 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
       teamPerformance,
       unassignedCount,
     };
-  }, [leads, teamMembers]);
+  }, [filteredLeads, teamMembers]);
 
   const formatCurrency = (value: number) => {
     if (value >= 10000000) {
@@ -126,7 +162,76 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Key Metrics */}
+      {/* Date Range Filter */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="text-sm font-medium text-muted-foreground">Filter by date:</span>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[180px] justify-start text-left font-normal",
+                    !dateFrom && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateFrom ? format(dateFrom, "PPP") : "From date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateFrom}
+                  onSelect={setDateFrom}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[180px] justify-start text-left font-normal",
+                    !dateTo && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateTo ? format(dateTo, "PPP") : "To date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={setDateTo}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {(dateFrom || dateTo) && (
+              <Button variant="ghost" size="sm" onClick={clearDateFilters}>
+                <X className="mr-2 h-4 w-4" />
+                Clear
+              </Button>
+            )}
+
+            {(dateFrom || dateTo) && (
+              <span className="text-sm text-muted-foreground">
+                Showing {filteredLeads.length} of {leads.length} leads
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
