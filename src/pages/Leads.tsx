@@ -108,7 +108,7 @@ export default function Leads() {
           {/* Filters */}
           <Card>
             <CardContent className="pt-6">
-              <LeadFilters filters={filters} onFiltersChange={setFilters} />
+              <LeadFilters filters={filters} onFiltersChange={setFilters} teamMembers={teamMembers} />
             </CardContent>
           </Card>
 
