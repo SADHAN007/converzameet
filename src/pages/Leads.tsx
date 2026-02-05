@@ -5,6 +5,7 @@ import { CreateLeadDialog } from '@/components/leads/CreateLeadDialog';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadsAnalytics } from '@/components/leads/LeadsAnalytics';
+import { LeadsImportExport } from '@/components/leads/LeadsImportExport';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,6 +36,7 @@ export default function Leads() {
     updateLead,
     deleteLead,
     assignLead,
+    bulkImportLeads,
   } = useLeads();
 
   // Fetch team members for analytics
@@ -65,14 +67,17 @@ export default function Leads() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Lead Management</h1>
           <p className="text-muted-foreground">
             Manage and track your business leads
           </p>
         </div>
-        <CreateLeadDialog onSubmit={createLead} />
+        <div className="flex items-center gap-2">
+          <LeadsImportExport leads={leads} onImport={bulkImportLeads} />
+          <CreateLeadDialog onSubmit={createLead} />
+        </div>
       </div>
 
       <Tabs defaultValue="table" className="space-y-6">
