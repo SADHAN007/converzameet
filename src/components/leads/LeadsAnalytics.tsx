@@ -57,6 +57,13 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
     const active = total - converted - lost;
     const conversionRate = total > 0 ? (converted / total) * 100 : 0;
 
+    // Deal value calculations
+    const totalDealValue = leads
+      .filter((l) => l.status === 'converted' && l.deal_value)
+      .reduce((sum, l) => sum + (l.deal_value || 0), 0);
+    
+    const avgDealValue = converted > 0 ? totalDealValue / converted : 0;
+
     // Status distribution
     const statusCounts: Record<string, number> = {};
     leads.forEach((lead) => {
@@ -69,12 +76,15 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
       color: STATUS_COLORS[status] || 'hsl(var(--muted))',
     }));
 
-    // Team performance
+    // Team performance with deal values
     const teamPerformance = teamMembers.map((member) => {
       const memberLeads = leads.filter((l) => l.assigned_to === member.id);
       const memberConverted = memberLeads.filter((l) => l.status === 'converted').length;
       const memberTotal = memberLeads.length;
       const memberRate = memberTotal > 0 ? (memberConverted / memberTotal) * 100 : 0;
+      const memberDealValue = memberLeads
+        .filter((l) => l.status === 'converted' && l.deal_value)
+        .reduce((sum, l) => sum + (l.deal_value || 0), 0);
 
       return {
         name: member.full_name?.split(' ')[0] || member.email?.split('@')[0] || 'Unknown',
@@ -82,8 +92,9 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
         total: memberTotal,
         converted: memberConverted,
         rate: Math.round(memberRate),
+        dealValue: memberDealValue,
       };
-    }).filter((m) => m.total > 0).sort((a, b) => b.total - a.total);
+    }).filter((m) => m.total > 0).sort((a, b) => b.dealValue - a.dealValue);
 
     // Unassigned leads
     const unassignedCount = leads.filter((l) => !l.assigned_to).length;
@@ -94,16 +105,29 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
       lost,
       active,
       conversionRate,
+      totalDealValue,
+      avgDealValue,
       statusData,
       teamPerformance,
       unassignedCount,
     };
   }, [leads, teamMembers]);
 
+  const formatCurrency = (value: number) => {
+    if (value >= 10000000) {
+      return `₹${(value / 10000000).toFixed(1)}Cr`;
+    } else if (value >= 100000) {
+      return `₹${(value / 100000).toFixed(1)}L`;
+    } else if (value >= 1000) {
+      return `₹${(value / 1000).toFixed(1)}K`;
+    }
+    return `₹${value.toFixed(0)}`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
@@ -123,7 +147,7 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-primary">
               {analytics.conversionRate.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -134,12 +158,27 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Deal Value</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{analytics.active}</div>
-            <p className="text-xs text-muted-foreground">In pipeline</p>
+            <div className="text-2xl font-bold text-primary">
+              {formatCurrency(analytics.totalDealValue)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Avg: {formatCurrency(analytics.avgDealValue)}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Active Pipeline</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.active}</div>
+            <p className="text-xs text-muted-foreground">In progress</p>
           </CardContent>
         </Card>
 
@@ -155,13 +194,13 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
                   {analytics.teamPerformance[0].name}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {analytics.teamPerformance[0].total} leads, {analytics.teamPerformance[0].rate}% conv.
+                  {formatCurrency(analytics.teamPerformance[0].dealValue)}
                 </p>
               </>
             ) : (
               <>
                 <div className="text-2xl font-bold">-</div>
-                <p className="text-xs text-muted-foreground">No assignments yet</p>
+                <p className="text-xs text-muted-foreground">No data</p>
               </>
             )}
           </CardContent>
@@ -269,8 +308,8 @@ export function LeadsAnalytics({ leads, teamMembers }: LeadsAnalyticsProps) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-green-600">{member.rate}%</div>
-                    <div className="text-xs text-muted-foreground">conversion</div>
+                    <div className="font-bold text-primary">{formatCurrency(member.dealValue)}</div>
+                    <div className="text-xs text-muted-foreground">{member.rate}% conversion</div>
                   </div>
                 </div>
               ))}

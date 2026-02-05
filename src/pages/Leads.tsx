@@ -49,8 +49,12 @@ export default function Leads() {
     fetchTeamMembers();
   }, []);
 
-  const handleStatusChange = async (id: string, status: LeadStatus) => {
-    await updateLead(id, { status });
+  const handleStatusChange = async (
+    id: string, 
+    status: LeadStatus, 
+    extras?: { deal_value?: number | null; conversion_date?: string | null }
+  ) => {
+    await updateLead(id, { status, ...extras });
   };
 
   const handleDelete = async (id: string) => {
