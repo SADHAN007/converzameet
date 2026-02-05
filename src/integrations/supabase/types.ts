@@ -202,6 +202,87 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          address: string | null
+          assigned_at: string | null
+          assigned_by: string | null
+          assigned_to: string | null
+          company_name: string
+          contact_number: string
+          conversion_date: string | null
+          created_at: string
+          created_by: string | null
+          deal_value: number | null
+          follow_up_date: string | null
+          id: string
+          latitude: number | null
+          lead_source: string | null
+          longitude: number | null
+          other_service: string | null
+          poc_name: string | null
+          poc_number: string | null
+          remarks: string | null
+          requirements: string[]
+          serial_number: string
+          status: Database["public"]["Enums"]["lead_status"]
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_to?: string | null
+          company_name: string
+          contact_number: string
+          conversion_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_value?: number | null
+          follow_up_date?: string | null
+          id?: string
+          latitude?: number | null
+          lead_source?: string | null
+          longitude?: number | null
+          other_service?: string | null
+          poc_name?: string | null
+          poc_number?: string | null
+          remarks?: string | null
+          requirements?: string[]
+          serial_number: string
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_to?: string | null
+          company_name?: string
+          contact_number?: string
+          conversion_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_value?: number | null
+          follow_up_date?: string | null
+          id?: string
+          latitude?: number | null
+          lead_source?: string | null
+          longitude?: number | null
+          other_service?: string | null
+          poc_name?: string | null
+          poc_number?: string | null
+          remarks?: string | null
+          requirements?: string[]
+          serial_number?: string
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       meeting_participants: {
         Row: {
           created_at: string
@@ -739,6 +820,15 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "manager" | "client"
+      lead_status:
+        | "new_lead"
+        | "contacted"
+        | "follow_up_required"
+        | "meeting_scheduled"
+        | "proposal_sent"
+        | "converted"
+        | "lost"
+        | "not_interested"
       meeting_status: "scheduled" | "completed" | "cancelled"
       meeting_type: "online" | "offline"
       project_role: "owner" | "member" | "viewer"
@@ -870,6 +960,16 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "manager", "client"],
+      lead_status: [
+        "new_lead",
+        "contacted",
+        "follow_up_required",
+        "meeting_scheduled",
+        "proposal_sent",
+        "converted",
+        "lost",
+        "not_interested",
+      ],
       meeting_status: ["scheduled", "completed", "cancelled"],
       meeting_type: ["online", "offline"],
       project_role: ["owner", "member", "viewer"],
