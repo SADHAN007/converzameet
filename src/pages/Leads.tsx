@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLeads } from '@/hooks/useLeads';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { CreateLeadDialog } from '@/components/leads/CreateLeadDialog';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { LeadsTable } from '@/components/leads/LeadsTable';
@@ -22,7 +23,10 @@ interface TeamMember {
 
 export default function Leads() {
   const { isAdmin } = useAuth();
+  const { isBdMarketing } = useUserRole();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  
+  const canCreateLead = isAdmin || isBdMarketing;
   const {
     leads,
     loading,
@@ -76,7 +80,7 @@ export default function Leads() {
         </div>
         <div className="flex items-center gap-2">
           <LeadsImportExport leads={leads} onImport={bulkImportLeads} />
-          <CreateLeadDialog onSubmit={createLead} />
+          {canCreateLead && <CreateLeadDialog onSubmit={createLead} />}
         </div>
       </div>
 
