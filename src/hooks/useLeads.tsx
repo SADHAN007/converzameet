@@ -235,6 +235,54 @@ export function useLeads() {
     }
   };
 
+  const bulkImportLeads = async (leadsData: Partial<Lead>[]) => {
+    if (!user) return { success: 0, errors: ['Not authenticated'] };
+
+    const errors: string[] = [];
+    let success = 0;
+
+    for (let i = 0; i < leadsData.length; i++) {
+      const leadData = leadsData[i];
+      try {
+        const insertData = {
+          company_name: leadData.company_name || `Import ${i + 1}`,
+          contact_number: leadData.contact_number || '-',
+          poc_name: leadData.poc_name || null,
+          poc_number: leadData.poc_number || null,
+          address: leadData.address || null,
+          website: leadData.website || null,
+          requirements: leadData.requirements || [],
+          other_service: leadData.other_service || null,
+          lead_source: leadData.lead_source || null,
+          status: leadData.status || 'new_lead',
+          remarks: leadData.remarks || null,
+          follow_up_date: leadData.follow_up_date || null,
+          deal_value: leadData.deal_value || null,
+          created_by: user.id,
+        };
+
+        const { error } = await supabase
+          .from('leads')
+          .insert(insertData as any);
+
+        if (error) throw error;
+        success++;
+      } catch (error: any) {
+        errors.push(`Row ${i + 1}: ${error.message}`);
+      }
+    }
+
+    if (success > 0) {
+      toast({
+        title: 'Import Complete',
+        description: `Successfully imported ${success} leads`,
+      });
+      fetchLeads();
+    }
+
+    return { success, errors };
+  };
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return {
@@ -250,6 +298,7 @@ export function useLeads() {
     updateLead,
     deleteLead,
     assignLead,
+    bulkImportLeads,
     refetch: fetchLeads,
   };
 }
