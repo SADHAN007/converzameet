@@ -19,8 +19,9 @@ import { SetReminderDialog } from './SetReminderDialog';
 import { BulkAssignBar } from './BulkAssignBar';
 import { ViewLeadDialog } from './ViewLeadDialog';
 import { format } from 'date-fns';
-import { ExternalLink, Trash2, UserPlus, IndianRupee, Eye } from 'lucide-react';
+import { ExternalLink, Trash2, UserPlus, IndianRupee, Eye, TableIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { motion } from 'framer-motion';
 
 interface TeamMember {
   id: string;
@@ -145,18 +146,24 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
 
   if (leads.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        No leads found. Create your first lead to get started.
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="p-4 rounded-full bg-muted/50 mb-4">
+          <TableIcon className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="text-lg font-medium mb-2">No leads found</h3>
+        <p className="text-muted-foreground max-w-sm">
+          Create your first lead or adjust your filters to see results.
+        </p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="rounded-md border">
+      <div className="rounded-xl border border-border/50 overflow-hidden bg-card/50">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
               {isAdmin && (
                 <TableHead className="w-[40px]">
                   <Checkbox
@@ -166,25 +173,31 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
                   />
                 </TableHead>
               )}
-              <TableHead>Serial No.</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>POC</TableHead>
-              <TableHead>Requirements</TableHead>
-              <TableHead>Assigned To</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Deal Value</TableHead>
-              <TableHead>Follow-up</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="font-semibold">Serial No.</TableHead>
+              <TableHead className="font-semibold">Company</TableHead>
+              <TableHead className="font-semibold">Contact</TableHead>
+              <TableHead className="font-semibold">POC</TableHead>
+              <TableHead className="font-semibold">Requirements</TableHead>
+              <TableHead className="font-semibold">Assigned To</TableHead>
+              <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">Deal Value</TableHead>
+              <TableHead className="font-semibold">Follow-up</TableHead>
+              <TableHead className="font-semibold">Created</TableHead>
+              <TableHead className="text-right font-semibold">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {leads.map((lead) => {
+            {leads.map((lead, index) => {
               const assignee = lead.assigned_to ? assignees[lead.assigned_to] : null;
 
               return (
-                <TableRow key={lead.id} className={selectedLeads.has(lead.id) ? 'bg-muted/50' : ''}>
+                <motion.tr
+                  key={lead.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: index * 0.03 }}
+                  className={`border-b transition-colors hover:bg-muted/50 ${selectedLeads.has(lead.id) ? 'bg-primary/5' : ''}`}
+                >
                   {isAdmin && (
                     <TableCell>
                       <Checkbox
@@ -352,7 +365,7 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
                       )}
                     </div>
                   </TableCell>
-                </TableRow>
+                </motion.tr>
               );
             })}
           </TableBody>

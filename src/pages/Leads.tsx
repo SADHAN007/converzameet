@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLeads } from '@/hooks/useLeads';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -11,7 +12,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronLeft, ChevronRight, BarChart3, TableIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  BarChart3, 
+  TableIcon, 
+  Target,
+  TrendingUp,
+  Users,
+  Sparkles
+} from 'lucide-react';
 import { LeadStatus } from '@/types/leads';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -25,8 +36,8 @@ export default function Leads() {
   const { isAdmin } = useAuth();
   const { isBdMarketing } = useUserRole();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [activeTab, setActiveTab] = useState('table');
   
-  // All authenticated users can create leads
   const {
     leads,
     loading,
@@ -44,7 +55,11 @@ export default function Leads() {
     bulkImportLeads,
   } = useLeads();
 
-  // Fetch team members for analytics
+  // Quick stats
+  const newLeadsCount = leads.filter(l => l.status === 'new_lead').length;
+  const convertedCount = leads.filter(l => l.status === 'converted').length;
+  const followUpCount = leads.filter(l => l.status === 'follow_up_required').length;
+
   useEffect(() => {
     const fetchTeamMembers = async () => {
       const { data } = await supabase
@@ -71,109 +86,247 @@ export default function Leads() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Lead Management</h1>
-          <p className="text-muted-foreground">
-            Manage and track your business leads
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="space-y-6"
+    >
+      {/* Header Section */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-primary/10">
+              <Target className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Lead Management</h1>
+              <p className="text-muted-foreground">
+                Track and convert your business opportunities
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="flex items-center gap-2 flex-wrap"
+        >
           <LeadsImportExport leads={leads} onImport={bulkImportLeads} />
           <CreateLeadDialog onSubmit={createLead} />
-        </div>
+        </motion.div>
       </div>
 
-      <Tabs defaultValue="table" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="table" className="gap-2">
-            <TableIcon className="h-4 w-4" />
-            Leads Table
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Analytics
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="analytics" className="space-y-6">
-          {loading ? (
-            <div className="grid gap-4 md:grid-cols-4">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-32 w-full" />
-              ))}
+      {/* Quick Stats */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        <Card className="glass border-border/50 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-blue-500/10">
+              <Sparkles className="h-5 w-5 text-blue-500" />
             </div>
-          ) : (
-            <LeadsAnalytics leads={leads} teamMembers={teamMembers} />
-          )}
-        </TabsContent>
+            <div>
+              <p className="text-2xl font-bold">{newLeadsCount}</p>
+              <p className="text-sm text-muted-foreground">New Leads</p>
+            </div>
+          </CardContent>
+        </Card>
 
-        <TabsContent value="table" className="space-y-6">
-          {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <LeadFilters filters={filters} onFiltersChange={setFilters} teamMembers={teamMembers} />
-            </CardContent>
-          </Card>
+        <Card className="glass border-border/50 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-amber-500/10">
+              <Users className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{followUpCount}</p>
+              <p className="text-sm text-muted-foreground">Follow-ups</p>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Leads Table */}
-          <Card>
-            <CardContent className="pt-6">
-              {loading ? (
-                <div className="space-y-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <>
-                  <LeadsTable
-                    leads={leads}
-                    onStatusChange={handleStatusChange}
-                    onDelete={handleDelete}
-                    onAssign={assignLead}
-                    onBulkAssign={bulkAssignLeads}
-                    isAdmin={isAdmin}
-                  />
+        <Card className="glass border-border/50 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-emerald-500/10">
+              <TrendingUp className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{convertedCount}</p>
+              <p className="text-sm text-muted-foreground">Converted</p>
+            </div>
+          </CardContent>
+        </Card>
 
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between pt-4">
-                      <p className="text-sm text-muted-foreground">
-                        Showing {(page - 1) * 20 + 1} to {Math.min(page * 20, totalCount)} of {totalCount} leads
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 1}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                          Previous
-                        </Button>
-                        <span className="text-sm">
-                          Page {page} of {totalPages}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page === totalPages}
-                        >
-                          Next
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
+        <Card className="glass border-border/50 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-primary/10">
+              <Target className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{totalCount}</p>
+              <p className="text-sm text-muted-foreground">Total Leads</p>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Tabs Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+      >
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="bg-muted/50 p-1">
+            <TabsTrigger value="table" className="gap-2 data-[state=active]:shadow-sm">
+              <TableIcon className="h-4 w-4" />
+              Leads Table
+              <Badge variant="secondary" className="ml-1 text-xs">
+                {totalCount}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2 data-[state=active]:shadow-sm">
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
+
+          <AnimatePresence mode="wait">
+            <TabsContent value="analytics" className="space-y-6">
+              <motion.div
+                key="analytics"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {loading ? (
+                  <div className="grid gap-4 md:grid-cols-4">
+                    {[...Array(4)].map((_, i) => (
+                      <Skeleton key={i} className="h-32 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <LeadsAnalytics leads={leads} teamMembers={teamMembers} />
+                )}
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="table" className="space-y-6">
+              <motion.div
+                key="table"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-6"
+              >
+                {/* Filters */}
+                <Card className="glass border-border/50 overflow-hidden">
+                  <CardContent className="p-6">
+                    <LeadFilters filters={filters} onFiltersChange={setFilters} teamMembers={teamMembers} />
+                  </CardContent>
+                </Card>
+
+                {/* Leads Table */}
+                <Card className="glass border-border/50 overflow-hidden">
+                  <CardContent className="p-6">
+                    {loading ? (
+                      <div className="space-y-4">
+                        {[...Array(5)].map((_, i) => (
+                          <Skeleton key={i} className="h-16 w-full" />
+                        ))}
                       </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+                    ) : (
+                      <>
+                        <LeadsTable
+                          leads={leads}
+                          onStatusChange={handleStatusChange}
+                          onDelete={handleDelete}
+                          onAssign={assignLead}
+                          onBulkAssign={bulkAssignLeads}
+                          isAdmin={isAdmin}
+                        />
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t mt-6"
+                          >
+                            <p className="text-sm text-muted-foreground">
+                              Showing <span className="font-medium text-foreground">{(page - 1) * 20 + 1}</span> to{' '}
+                              <span className="font-medium text-foreground">{Math.min(page * 20, totalCount)}</span> of{' '}
+                              <span className="font-medium text-foreground">{totalCount}</span> leads
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(page - 1)}
+                                disabled={page === 1}
+                                className="gap-1"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                                Previous
+                              </Button>
+                              <div className="flex items-center gap-1 px-2">
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                  let pageNum;
+                                  if (totalPages <= 5) {
+                                    pageNum = i + 1;
+                                  } else if (page <= 3) {
+                                    pageNum = i + 1;
+                                  } else if (page >= totalPages - 2) {
+                                    pageNum = totalPages - 4 + i;
+                                  } else {
+                                    pageNum = page - 2 + i;
+                                  }
+                                  return (
+                                    <Button
+                                      key={pageNum}
+                                      variant={page === pageNum ? "default" : "ghost"}
+                                      size="sm"
+                                      onClick={() => setPage(pageNum)}
+                                      className="w-9 h-9"
+                                    >
+                                      {pageNum}
+                                    </Button>
+                                  );
+                                })}
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(page + 1)}
+                                disabled={page === totalPages}
+                                className="gap-1"
+                              >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </TabsContent>
+          </AnimatePresence>
+        </Tabs>
+      </motion.div>
+    </motion.div>
   );
 }
