@@ -17,8 +17,9 @@ import { AssignLeadDialog } from './AssignLeadDialog';
 import { ConvertLeadDialog } from './ConvertLeadDialog';
 import { SetReminderDialog } from './SetReminderDialog';
 import { BulkAssignBar } from './BulkAssignBar';
+import { ViewLeadDialog } from './ViewLeadDialog';
 import { format } from 'date-fns';
-import { ExternalLink, Trash2, UserPlus, IndianRupee } from 'lucide-react';
+import { ExternalLink, Trash2, UserPlus, IndianRupee, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TeamMember {
@@ -40,6 +41,7 @@ interface LeadsTableProps {
 export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAssign, isAdmin }: LeadsTableProps) {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [assignees, setAssignees] = useState<Record<string, TeamMember>>({});
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
@@ -74,6 +76,11 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
   const handleOpenAssign = (lead: Lead) => {
     setSelectedLead(lead);
     setAssignDialogOpen(true);
+  };
+
+  const handleViewLead = (lead: Lead) => {
+    setSelectedLead(lead);
+    setViewDialogOpen(true);
   };
 
   const handleStatusSelect = (lead: Lead, newStatus: LeadStatus) => {
@@ -324,6 +331,14 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleViewLead(lead)}
+                        title="View lead details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <SetReminderDialog leadId={lead.id} companyName={lead.company_name} />
                       {isAdmin && (
                         <Button
@@ -359,6 +374,12 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
             onOpenChange={setConvertDialogOpen}
             leadName={selectedLead.company_name}
             onConvert={handleConvert}
+          />
+          <ViewLeadDialog
+            open={viewDialogOpen}
+            onOpenChange={setViewDialogOpen}
+            lead={selectedLead}
+            assigneeName={selectedLead.assigned_to ? assignees[selectedLead.assigned_to]?.full_name || assignees[selectedLead.assigned_to]?.email : null}
           />
         </>
       )}
