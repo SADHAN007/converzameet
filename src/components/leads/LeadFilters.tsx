@@ -65,12 +65,12 @@ export function LeadFilters({ filters, onFiltersChange, teamMembers = [] }: Lead
             onValueChange={(value) => {
               if (value) onFiltersChange({ ...filters, viewMode: value as 'my' | 'all' });
             }}
-            className="border rounded-lg p-1 bg-muted/50"
+            className="rounded-lg bg-secondary p-1 border border-border"
           >
             <ToggleGroupItem 
               value="all" 
               aria-label="All Leads" 
-              className="gap-1.5 px-4 py-2 data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md transition-all"
+              className="gap-1.5 px-4 py-2 rounded-md text-foreground font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=off]:text-muted-foreground transition-all"
             >
               <Users className="h-4 w-4" />
               All Leads
@@ -78,7 +78,7 @@ export function LeadFilters({ filters, onFiltersChange, teamMembers = [] }: Lead
             <ToggleGroupItem 
               value="my" 
               aria-label="My Leads" 
-              className="gap-1.5 px-4 py-2 data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md transition-all"
+              className="gap-1.5 px-4 py-2 rounded-md text-foreground font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=off]:text-muted-foreground transition-all"
             >
               <User className="h-4 w-4" />
               My Leads
