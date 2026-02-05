@@ -39,7 +39,9 @@ export function useLeads() {
         query = query.eq('status', filters.status);
       }
 
-      if (filters.assignedTo !== 'all') {
+      if (filters.assignedTo === 'unassigned') {
+        query = query.is('assigned_to', null);
+      } else if (filters.assignedTo !== 'all') {
         query = query.eq('assigned_to', filters.assignedTo);
       }
 

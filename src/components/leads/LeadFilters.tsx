@@ -4,12 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Search, X } from 'lucide-react';
 import { LeadFilters as LeadFiltersType, LEAD_STATUS_OPTIONS } from '@/types/leads';
 
+interface TeamMember {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
 interface LeadFiltersProps {
   filters: LeadFiltersType;
   onFiltersChange: (filters: LeadFiltersType) => void;
+  teamMembers?: TeamMember[];
 }
 
-export function LeadFilters({ filters, onFiltersChange }: LeadFiltersProps) {
+export function LeadFilters({ filters, onFiltersChange, teamMembers = [] }: LeadFiltersProps) {
   const handleReset = () => {
     onFiltersChange({
       search: '',
@@ -51,6 +58,24 @@ export function LeadFilters({ filters, onFiltersChange }: LeadFiltersProps) {
           {LEAD_STATUS_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={filters.assignedTo}
+        onValueChange={(value) => onFiltersChange({ ...filters, assignedTo: value })}
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Filter by user" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Users</SelectItem>
+          <SelectItem value="unassigned">Unassigned</SelectItem>
+          {teamMembers.map((member) => (
+            <SelectItem key={member.id} value={member.id}>
+              {member.full_name || member.email || 'Unknown'}
             </SelectItem>
           ))}
         </SelectContent>
