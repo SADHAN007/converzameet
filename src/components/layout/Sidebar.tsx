@@ -13,6 +13,7 @@ import {
   FileText,
   Phone,
   Users,
+  UserPlus,
   LogOut,
   ChevronLeft,
   UserCircle,
@@ -40,9 +41,6 @@ interface NavItemType {
   badge?: number;
 }
 
-const adminNav = [
-  { to: '/admin/users', icon: Users, label: 'Users' },
-];
 
 export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps) {
   const location = useLocation();
@@ -63,6 +61,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
   const mainNav: NavItemType[] = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/projects', icon: FolderKanban, label: 'Projects' },
+    { to: '/leads', icon: UserPlus, label: 'Leads' },
     { to: '/chat', icon: MessageSquare, label: 'Project Chat' },
     { to: '/messages', icon: MessagesSquare, label: 'Messages' },
     { to: '/calendar', icon: Calendar, label: 'Calendar' },

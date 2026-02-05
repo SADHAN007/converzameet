@@ -18,6 +18,7 @@ import MOMPage from "./pages/MOM";
 import AdminUsers from "./pages/AdminUsers";
 import Profile from "./pages/Profile";
 import CallHistory from "./pages/CallHistory";
+import Leads from "./pages/Leads";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
                 <Route path="/mom" element={<MOMPage />} />
                 <Route path="/calls" element={<CallHistory />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/leads" element={<Leads />} />
                 <Route path="/profile" element={<Profile />} />
               </Route>
               <Route path="*" element={<NotFound />} />
