@@ -202,6 +202,50 @@ export type Database = {
           },
         ]
       }
+      lead_reminders: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          lead_id: string
+          notified_15min: boolean | null
+          notified_30min: boolean | null
+          reminder_time: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          lead_id: string
+          notified_15min?: boolean | null
+          notified_30min?: boolean | null
+          reminder_time: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          lead_id?: string
+          notified_15min?: boolean | null
+          notified_30min?: boolean | null
+          reminder_time?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_reminders_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           address: string | null

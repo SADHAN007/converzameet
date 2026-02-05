@@ -14,6 +14,7 @@ import { Lead, LEAD_STATUS_OPTIONS, LeadStatus } from '@/types/leads';
 import { LeadStatusBadge } from './LeadStatusBadge';
 import { AssignLeadDialog } from './AssignLeadDialog';
 import { ConvertLeadDialog } from './ConvertLeadDialog';
+import { SetReminderDialog } from './SetReminderDialog';
 import { format } from 'date-fns';
 import { ExternalLink, Trash2, UserPlus, IndianRupee } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -127,7 +128,7 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
               <TableHead>Deal Value</TableHead>
               <TableHead>Follow-up</TableHead>
               <TableHead>Created</TableHead>
-              {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -271,18 +272,21 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, isAdmin 
                   <TableCell className="text-sm text-muted-foreground">
                     {format(new Date(lead.created_at), 'MMM dd, yyyy')}
                   </TableCell>
-                  {isAdmin && (
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onDelete(lead.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  )}
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <SetReminderDialog leadId={lead.id} companyName={lead.company_name} />
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onDelete(lead.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}
