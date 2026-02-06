@@ -8,12 +8,17 @@ import {
   Send, 
   CheckCircle2, 
   XCircle, 
-  Ban 
+  Ban,
+  ChevronDown
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LeadStatusBadgeProps {
   status: LeadStatus;
   showIcon?: boolean;
+  showDropdownIndicator?: boolean;
+  compact?: boolean;
+  className?: string;
 }
 
 const STATUS_ICONS: Record<LeadStatus, React.ElementType> = {
@@ -38,7 +43,13 @@ const STATUS_STYLES: Record<LeadStatus, string> = {
   not_interested: 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30 hover:bg-slate-500/25',
 };
 
-export function LeadStatusBadge({ status, showIcon = true }: LeadStatusBadgeProps) {
+export function LeadStatusBadge({ 
+  status, 
+  showIcon = true, 
+  showDropdownIndicator = false,
+  compact = false,
+  className
+}: LeadStatusBadgeProps) {
   const statusOption = LEAD_STATUS_OPTIONS.find((opt) => opt.value === status);
   const Icon = STATUS_ICONS[status];
   const styleClass = STATUS_STYLES[status];
@@ -50,10 +61,19 @@ export function LeadStatusBadge({ status, showIcon = true }: LeadStatusBadgeProp
   return (
     <Badge 
       variant="outline"
-      className={`${styleClass} font-medium transition-all duration-200 gap-1.5 border`}
+      className={cn(
+        styleClass,
+        "font-medium transition-all duration-200 border cursor-pointer whitespace-nowrap",
+        compact ? "gap-1 px-2 py-0.5 text-xs" : "gap-1.5 px-2.5 py-1",
+        showDropdownIndicator && "pr-1.5",
+        className
+      )}
     >
-      {showIcon && Icon && <Icon className="h-3 w-3" />}
-      {statusOption.label}
+      {showIcon && Icon && <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />}
+      <span>{statusOption.label}</span>
+      {showDropdownIndicator && (
+        <ChevronDown className={cn("opacity-60", compact ? "h-3 w-3" : "h-3.5 w-3.5")} />
+      )}
     </Badge>
   );
 }

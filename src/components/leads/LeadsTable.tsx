@@ -301,13 +301,17 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
                       value={lead.status}
                       onValueChange={(value) => handleStatusSelect(lead, value as LeadStatus)}
                     >
-                      <SelectTrigger className="w-[150px] h-8">
-                        <LeadStatusBadge status={lead.status} />
+                      <SelectTrigger className="w-auto h-auto border-0 bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:hidden">
+                        <LeadStatusBadge status={lead.status} showDropdownIndicator />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="min-w-[180px]">
                         {LEAD_STATUS_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
+                          <SelectItem 
+                            key={option.value} 
+                            value={option.value}
+                            className="cursor-pointer"
+                          >
+                            <LeadStatusBadge status={option.value as LeadStatus} compact />
                           </SelectItem>
                         ))}
                       </SelectContent>
