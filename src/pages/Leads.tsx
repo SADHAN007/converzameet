@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLeads } from '@/hooks/useLeads';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -21,7 +23,8 @@ import {
   Target,
   TrendingUp,
   Users,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { LeadStatus } from '@/types/leads';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,11 +35,17 @@ interface TeamMember {
   email: string | null;
 }
 
+const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
 export default function Leads() {
   const { isAdmin } = useAuth();
   const { isBdMarketing } = useUserRole();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [activeTab, setActiveTab] = useState('table');
+  const [autoRefresh, setAutoRefresh] = useState(() => {
+    const saved = localStorage.getItem('leads-auto-refresh');
+    return saved === 'true';
+  });
   
   const {
     leads,
@@ -53,7 +62,25 @@ export default function Leads() {
     assignLead,
     bulkAssignLeads,
     bulkImportLeads,
+    refetch,
   } = useLeads();
+
+  // Auto-refresh functionality (admin only)
+  useEffect(() => {
+    if (!isAdmin || !autoRefresh) return;
+
+    const intervalId = setInterval(() => {
+      refetch();
+    }, AUTO_REFRESH_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [isAdmin, autoRefresh, refetch]);
+
+  // Persist auto-refresh preference
+  const handleAutoRefreshToggle = useCallback((checked: boolean) => {
+    setAutoRefresh(checked);
+    localStorage.setItem('leads-auto-refresh', String(checked));
+  }, []);
 
   // Quick stats
   const newLeadsCount = leads.filter(l => l.status === 'new_lead').length;
@@ -116,8 +143,25 @@ export default function Leads() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
-          className="flex items-center gap-2 flex-wrap"
+          className="flex items-center gap-3 flex-wrap"
         >
+          {/* Auto Refresh Toggle - Admin Only */}
+          {isAdmin && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border/50">
+              <RefreshCw className={`h-4 w-4 text-muted-foreground ${autoRefresh ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
+              <Label htmlFor="auto-refresh" className="text-sm font-medium cursor-pointer">
+                Auto Refresh
+              </Label>
+              <Switch
+                id="auto-refresh"
+                checked={autoRefresh}
+                onCheckedChange={handleAutoRefreshToggle}
+              />
+              {autoRefresh && (
+                <span className="text-xs text-muted-foreground">(5 min)</span>
+              )}
+            </div>
+          )}
           <LeadsImportExport leads={leads} onImport={bulkImportLeads} />
           <CreateLeadDialog onSubmit={createLead} />
         </motion.div>
