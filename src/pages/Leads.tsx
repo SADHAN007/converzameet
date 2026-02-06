@@ -298,6 +298,7 @@ export default function Leads() {
                           onDelete={handleDelete}
                           onAssign={assignLead}
                           onBulkAssign={bulkAssignLeads}
+                          onUpdateLead={updateLead}
                           isAdmin={isAdmin}
                         />
 
