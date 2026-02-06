@@ -33,6 +33,37 @@ Deno.serve(async (req) => {
         );
       }
 
+      // First, unassign any leads assigned to this user to avoid FK constraint violations
+      const { error: leadsUpdateError } = await supabaseAdmin
+        .from("leads")
+        .update({ assigned_to: null, assigned_by: null, assigned_at: null })
+        .eq("assigned_to", userId);
+
+      if (leadsUpdateError) {
+        console.error("Error unassigning leads:", leadsUpdateError);
+        // Continue anyway - the leads might not exist
+      }
+
+      // Also clear leads created by this user (set to null, don't delete the leads)
+      const { error: createdByError } = await supabaseAdmin
+        .from("leads")
+        .update({ created_by: null })
+        .eq("created_by", userId);
+
+      if (createdByError) {
+        console.error("Error clearing created_by:", createdByError);
+      }
+
+      // Clear lead activities by this user
+      const { error: activitiesError } = await supabaseAdmin
+        .from("lead_activities")
+        .update({ user_id: null })
+        .eq("user_id", userId);
+
+      if (activitiesError) {
+        console.error("Error clearing lead activities:", activitiesError);
+      }
+
       // Delete user from auth (this will cascade to profiles and roles due to foreign keys)
       const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
