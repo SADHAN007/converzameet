@@ -21,6 +21,8 @@ import CallHistory from "./pages/CallHistory";
 import Leads from "./pages/Leads";
 import Tasks from "./pages/Tasks";
 import CreateUser from "./pages/CreateUser";
+import DigitalMarketing from "./pages/DigitalMarketing";
+import GraphicsDesign from "./pages/GraphicsDesign";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +50,8 @@ const App = () => (
                 <Route path="/admin/create-user" element={<CreateUser />} />
                 <Route path="/leads" element={<Leads />} />
                 <Route path="/tasks" element={<Tasks />} />
+                <Route path="/digital-marketing" element={<DigitalMarketing />} />
+                <Route path="/graphics-design" element={<GraphicsDesign />} />
                 <Route path="/profile" element={<Profile />} />
               </Route>
               <Route path="*" element={<NotFound />} />
