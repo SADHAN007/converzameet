@@ -88,6 +88,9 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
   const adminNav: NavItemType[] = [
     { to: '/admin/users', icon: Users, label: 'User Management' },
     { to: '/admin/create-user', icon: UserPlus, label: 'Create User' },
+  ];
+
+  const reportsNav: NavItemType[] = [
     { to: '/projects', icon: FolderKanban, label: 'All Projects' },
     { to: '/leads', icon: UserPlus, label: 'All Leads' },
     { to: '/tasks', icon: ClipboardList, label: 'All Tasks' },
@@ -232,6 +235,19 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
             <div className="space-y-1">
               {adminNav.map((item) => (
                 <NavItem key={item.to} {...item} />
+              ))}
+            </div>
+
+            <div className={cn('pt-4 pb-2', !collapsed && 'px-3')}>
+              {!collapsed && (
+                <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
+                  Reports
+                </p>
+              )}
+            </div>
+            <div className="space-y-1">
+              {reportsNav.map((item) => (
+                <NavItem key={`report-${item.to}`} {...item} />
               ))}
             </div>
           </>
