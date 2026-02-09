@@ -22,6 +22,7 @@ import {
   ClipboardList,
   Megaphone,
   Palette,
+  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -91,6 +92,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
   ];
 
   const reportsNav: NavItemType[] = [
+    { to: '/reports', icon: BarChart3, label: 'Reports Dashboard' },
     { to: '/projects', icon: FolderKanban, label: 'All Projects' },
     { to: '/leads', icon: UserPlus, label: 'All Leads' },
     { to: '/tasks', icon: ClipboardList, label: 'All Tasks' },
