@@ -39,7 +39,7 @@ interface TaskDetailDialogProps {
 }
 
 export default function TaskDetailDialog({ task, open, onOpenChange, onUpdateStatus, onUpdateTask, onDelete }: TaskDetailDialogProps) {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, userRole } = useAuth();
   const { toast } = useToast();
   const [newStatus, setNewStatus] = useState<Task['status'] | ''>('');
   const [remark, setRemark] = useState('');
@@ -50,8 +50,25 @@ export default function TaskDetailDialog({ task, open, onOpenChange, onUpdateSta
 
   const isAssigner = task.assigned_by === user?.id;
   const isAssignee = task.assigned_to === user?.id;
+  const isGraphicDesigner = userRole === 'graphic_designer';
+  const isDigitalMarketer = userRole === 'digital_marketer';
+  
+  // Graphic designers can only change status on tasks assigned to them
+  // Digital marketers and admins can change status on any task they're involved with
   const canChangeStatus = isAssignee || isAssigner || isAdmin;
-  const canApprove = isAssigner || isAdmin;
+  
+  // Only digital marketers (assigners) and admins can approve/reject
+  const canApprove = (isAssigner && (isDigitalMarketer || isAdmin)) || isAdmin;
+  
+  // Only digital marketers (assigners) and admins can delete
+  const canDelete = isAssigner || isAdmin;
+  
+  // Graphic designers can only set: in_progress, in_review
+  // Digital marketers/admins can set any status
+  const availableStatuses = isGraphicDesigner && isAssignee && !isAdmin
+    ? STATUS_OPTIONS.filter(s => ['in_progress', 'in_review'].includes(s.value))
+    : STATUS_OPTIONS;
+    
   const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !['approved', 'completed'].includes(task.status);
 
   const handleStatusChange = async () => {
@@ -216,7 +233,7 @@ export default function TaskDetailDialog({ task, open, onOpenChange, onUpdateSta
                 <Select value={newStatus} onValueChange={v => setNewStatus(v as Task['status'])}>
                   <SelectTrigger className="flex-1"><SelectValue placeholder="Change status" /></SelectTrigger>
                   <SelectContent>
-                    {STATUS_OPTIONS.map(s => (
+                    {availableStatuses.map(s => (
                       <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -252,7 +269,7 @@ export default function TaskDetailDialog({ task, open, onOpenChange, onUpdateSta
         </div>
 
         <DialogFooter className="flex justify-between">
-          {(isAssigner || isAdmin) && (
+          {canDelete && (
             <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
               {deleting && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               Delete Task

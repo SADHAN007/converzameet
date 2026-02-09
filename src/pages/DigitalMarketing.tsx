@@ -38,7 +38,7 @@ export default function DigitalMarketing() {
     setDetailOpen(true);
   };
 
-  const canCreate = isAdmin || userRole === 'digital_marketer';
+  const canCreate = isAdmin || userRole === 'digital_marketer' || userRole === 'manager';
 
   return (
     <motion.div
