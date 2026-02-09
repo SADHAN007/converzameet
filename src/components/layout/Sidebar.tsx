@@ -20,6 +20,8 @@ import {
   Download,
   CheckCircle,
   ClipboardList,
+  Megaphone,
+  Palette,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -45,7 +47,7 @@ interface NavItemType {
 
 export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps) {
   const location = useLocation();
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, userRole, signOut } = useAuth();
   const { missedCount } = useMissedCalls();
   const { canInstall, isInstalled, promptInstall } = usePWAInstall();
   const { profile } = useUserProfile();
@@ -63,12 +65,17 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/projects', icon: FolderKanban, label: 'Projects' },
     { to: '/leads', icon: UserPlus, label: 'Leads' },
-    { to: '/tasks', icon: ClipboardList, label: 'Tasks' },
     { to: '/chat', icon: MessageSquare, label: 'Project Chat' },
     { to: '/messages', icon: MessagesSquare, label: 'Messages' },
     { to: '/calendar', icon: Calendar, label: 'Calendar' },
     { to: '/mom', icon: FileText, label: 'Minutes' },
     { to: '/calls', icon: Phone, label: 'Calls', badge: missedCount },
+  ];
+
+  const showDigitalMarketing = isAdmin || userRole === 'digital_marketer' || userRole === 'graphic_designer';
+
+  const digitalMarketingNav: NavItemType[] = [
+    { to: '/tasks', icon: ClipboardList, label: 'Task Board' },
   ];
 
   const adminNav: NavItemType[] = [
@@ -181,6 +188,23 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
           ))}
         </div>
 
+        {showDigitalMarketing && (
+          <>
+            <div className={cn('pt-4 pb-2', !collapsed && 'px-3')}>
+              {!collapsed && (
+                <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
+                  Digital Marketing & Graphics
+                </p>
+              )}
+            </div>
+            <div className="space-y-1">
+              {digitalMarketingNav.map((item) => (
+                <NavItem key={item.to} {...item} />
+              ))}
+            </div>
+          </>
+        )}
+
         {isAdmin && (
           <>
             <div className={cn('pt-4 pb-2', !collapsed && 'px-3')}>
@@ -258,7 +282,12 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
                 {displayName}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                {isAdmin ? 'Admin' : 'Member'}
+                {userRole === 'digital_marketer' ? 'Digital Marketer' : 
+                 userRole === 'graphic_designer' ? 'Graphic Designer' :
+                 userRole === 'bd_marketing' ? 'BD/Marketing' :
+                 userRole === 'manager' ? 'Manager' :
+                 userRole === 'client' ? 'Client' :
+                 isAdmin ? 'Admin' : 'Member'}
               </p>
             </div>
           )}
