@@ -9,11 +9,13 @@ import CreateTaskDialog from '@/components/tasks/CreateTaskDialog';
 import TaskDetailDialog from '@/components/tasks/TaskDetailDialog';
 
 export default function Tasks() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, userRole } = useAuth();
   const { tasks, loading, createTask, updateTaskStatus, updateTask, deleteTask } = useTasks();
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  const canCreate = isAdmin || userRole === 'digital_marketer' || userRole === 'manager';
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
@@ -31,10 +33,12 @@ export default function Tasks() {
           <h1 className="text-2xl font-bold">Task Board</h1>
           <p className="text-muted-foreground">Manage and track design tasks</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create Task
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setCreateOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Task
+          </Button>
+        )}
       </div>
 
       {loading ? (
