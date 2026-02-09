@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const VALID_ROLES = ["admin", "manager", "user", "client"];
+const VALID_ROLES = ["admin", "manager", "user", "client", "bd_marketing", "digital_marketer", "graphic_designer"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

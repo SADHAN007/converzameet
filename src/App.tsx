@@ -19,6 +19,7 @@ import AdminUsers from "./pages/AdminUsers";
 import Profile from "./pages/Profile";
 import CallHistory from "./pages/CallHistory";
 import Leads from "./pages/Leads";
+import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
                 <Route path="/calls" element={<CallHistory />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/leads" element={<Leads />} />
+                <Route path="/tasks" element={<Tasks />} />
                 <Route path="/profile" element={<Profile />} />
               </Route>
               <Route path="*" element={<NotFound />} />
