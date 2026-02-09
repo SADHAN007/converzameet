@@ -72,13 +72,18 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
     { to: '/calls', icon: Phone, label: 'Calls', badge: missedCount },
   ];
 
-  const showDigitalMarketing = isAdmin || userRole === 'digital_marketer' || userRole === 'graphic_designer';
+  const isGraphicDesigner = userRole === 'graphic_designer';
+  const showDigitalMarketing = isAdmin || userRole === 'digital_marketer' || isGraphicDesigner;
 
-  const digitalMarketingNav: NavItemType[] = [
-    { to: '/tasks', icon: ClipboardList, label: 'Task Board' },
-    { to: '/digital-marketing', icon: Megaphone, label: 'Digital Marketing' },
-    { to: '/graphics-design', icon: Palette, label: 'Graphics Design' },
-  ];
+  const digitalMarketingNav: NavItemType[] = isGraphicDesigner && !isAdmin
+    ? [
+        { to: '/graphics-design', icon: Palette, label: 'My Tasks' },
+      ]
+    : [
+        { to: '/tasks', icon: ClipboardList, label: 'Task Board' },
+        { to: '/digital-marketing', icon: Megaphone, label: 'Digital Marketing' },
+        { to: '/graphics-design', icon: Palette, label: 'Graphics Design' },
+      ];
 
   const adminNav: NavItemType[] = [
     { to: '/admin/users', icon: Users, label: 'User Management' },
