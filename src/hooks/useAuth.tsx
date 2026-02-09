@@ -61,12 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('user_id', userId);
     
-    const role = data?.role as AppRole | undefined;
-    setUserRole(role || 'user');
-    setIsAdmin(role === 'admin');
+    // If user has multiple roles, prioritize admin
+    const roles = (data || []).map(r => r.role as AppRole);
+    const effectiveRole = roles.includes('admin') ? 'admin' : (roles[0] || 'user');
+    setUserRole(effectiveRole);
+    setIsAdmin(effectiveRole === 'admin');
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
