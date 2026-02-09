@@ -807,6 +807,106 @@ export type Database = {
         }
         Relationships: []
       }
+      task_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id: string
+          task_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id?: string
+          task_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          file_url?: string
+          id?: string
+          task_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_attachments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          assigned_by: string | null
+          assigned_date: string | null
+          assigned_to: string | null
+          created_at: string
+          deadline: string | null
+          id: string
+          priority: Database["public"]["Enums"]["task_priority"]
+          project_id: string
+          remark: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          task_name: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          assigned_by?: string | null
+          assigned_date?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          project_id: string
+          remark?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          task_name: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          assigned_by?: string | null
+          assigned_date?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string
+          remark?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          task_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_presence: {
         Row: {
           created_at: string
@@ -891,6 +991,8 @@ export type Database = {
     Functions: {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_bd_marketing: { Args: { _user_id: string }; Returns: boolean }
+      is_digital_marketer: { Args: { _user_id: string }; Returns: boolean }
+      is_graphic_designer: { Args: { _user_id: string }; Returns: boolean }
       is_group_member: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
@@ -905,7 +1007,14 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user" | "manager" | "client" | "bd_marketing"
+      app_role:
+        | "admin"
+        | "user"
+        | "manager"
+        | "client"
+        | "bd_marketing"
+        | "digital_marketer"
+        | "graphic_designer"
       lead_status:
         | "new_lead"
         | "contacted"
@@ -918,6 +1027,14 @@ export type Database = {
       meeting_status: "scheduled" | "completed" | "cancelled"
       meeting_type: "online" | "offline"
       project_role: "owner" | "member" | "viewer"
+      task_priority: "low" | "medium" | "high" | "urgent"
+      task_status:
+        | "todo"
+        | "in_progress"
+        | "in_review"
+        | "approved"
+        | "rejected"
+        | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1045,7 +1162,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "manager", "client", "bd_marketing"],
+      app_role: [
+        "admin",
+        "user",
+        "manager",
+        "client",
+        "bd_marketing",
+        "digital_marketer",
+        "graphic_designer",
+      ],
       lead_status: [
         "new_lead",
         "contacted",
@@ -1059,6 +1184,15 @@ export const Constants = {
       meeting_status: ["scheduled", "completed", "cancelled"],
       meeting_type: ["online", "offline"],
       project_role: ["owner", "member", "viewer"],
+      task_priority: ["low", "medium", "high", "urgent"],
+      task_status: [
+        "todo",
+        "in_progress",
+        "in_review",
+        "approved",
+        "rejected",
+        "completed",
+      ],
     },
   },
 } as const

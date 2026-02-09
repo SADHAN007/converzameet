@@ -48,7 +48,7 @@ import { Navigate } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type AppRole = 'admin' | 'manager' | 'user' | 'client' | 'bd_marketing';
+type AppRole = 'admin' | 'manager' | 'user' | 'client' | 'bd_marketing' | 'digital_marketer' | 'graphic_designer';
 
 interface RoleConfig {
   label: string;
@@ -62,6 +62,8 @@ const ROLE_CONFIG: Record<AppRole, RoleConfig> = {
   user: { label: 'User', color: 'bg-green-500/10 text-green-600', icon: Users },
   client: { label: 'Client', color: 'bg-purple-500/10 text-purple-600', icon: UserPlus },
   bd_marketing: { label: 'BD/Marketing', color: 'bg-orange-500/10 text-orange-600', icon: Users },
+  digital_marketer: { label: 'Digital Marketer', color: 'bg-cyan-500/10 text-cyan-600', icon: Users },
+  graphic_designer: { label: 'Graphic Designer', color: 'bg-pink-500/10 text-pink-600', icon: Users },
 };
 
 // Helper component to render role icon

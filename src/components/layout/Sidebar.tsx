@@ -19,6 +19,7 @@ import {
   UserCircle,
   Download,
   CheckCircle,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/projects', icon: FolderKanban, label: 'Projects' },
     { to: '/leads', icon: UserPlus, label: 'Leads' },
+    { to: '/tasks', icon: ClipboardList, label: 'Tasks' },
     { to: '/chat', icon: MessageSquare, label: 'Project Chat' },
     { to: '/messages', icon: MessagesSquare, label: 'Messages' },
     { to: '/calendar', icon: Calendar, label: 'Calendar' },
