@@ -76,6 +76,8 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
 
   const digitalMarketingNav: NavItemType[] = [
     { to: '/tasks', icon: ClipboardList, label: 'Task Board' },
+    { to: '/tasks?dept=digital', icon: Megaphone, label: 'Digital Marketing' },
+    { to: '/tasks?dept=graphics', icon: Palette, label: 'Graphics Design' },
   ];
 
   const adminNav: NavItemType[] = [
