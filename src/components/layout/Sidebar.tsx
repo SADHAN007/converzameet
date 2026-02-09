@@ -80,6 +80,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
 
   const adminNav: NavItemType[] = [
     { to: '/admin/users', icon: Users, label: 'User Management' },
+    { to: '/admin/create-user', icon: UserPlus, label: 'Create User' },
     { to: '/projects', icon: FolderKanban, label: 'All Projects' },
     { to: '/leads', icon: UserPlus, label: 'All Leads' },
     { to: '/tasks', icon: ClipboardList, label: 'All Tasks' },
