@@ -79,7 +79,14 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
   ];
 
   const adminNav: NavItemType[] = [
-    { to: '/admin/users', icon: Users, label: 'Users' },
+    { to: '/admin/users', icon: Users, label: 'User Management' },
+    { to: '/projects', icon: FolderKanban, label: 'All Projects' },
+    { to: '/leads', icon: UserPlus, label: 'All Leads' },
+    { to: '/tasks', icon: ClipboardList, label: 'All Tasks' },
+    { to: '/calendar', icon: Calendar, label: 'All Meetings' },
+    { to: '/mom', icon: FileText, label: 'All Minutes' },
+    { to: '/messages', icon: MessagesSquare, label: 'All Messages' },
+    { to: '/calls', icon: Phone, label: 'Call Logs' },
   ];
 
   const getInitials = (name?: string | null, email?: string) => {
