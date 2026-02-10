@@ -34,6 +34,7 @@ export interface TaskAttachment {
   file_url: string;
   uploaded_by: string | null;
   created_at: string;
+  uploader_profile?: { full_name: string | null; email: string | null } | null;
 }
 
 export function useTasks() {
@@ -86,9 +87,24 @@ export function useTasks() {
         .in('task_id', taskIds.length > 0 ? taskIds : ['none']);
 
       const attachmentMap = new Map<string, TaskAttachment[]>();
+      // Collect uploader IDs
+      const uploaderIds = new Set<string>();
+      (attachments || []).forEach(a => {
+        if (a.uploaded_by) uploaderIds.add(a.uploaded_by);
+      });
+
+      // Fetch uploader profiles
+      const { data: uploaderProfiles } = uploaderIds.size > 0
+        ? await supabase.from('profiles_public').select('id, full_name, email').in('id', Array.from(uploaderIds))
+        : { data: [] };
+      const uploaderMap = new Map((uploaderProfiles || []).map(p => [p.id, p]));
+
       (attachments || []).forEach(a => {
         const existing = attachmentMap.get(a.task_id) || [];
-        existing.push(a as TaskAttachment);
+        existing.push({
+          ...(a as TaskAttachment),
+          uploader_profile: a.uploaded_by ? uploaderMap.get(a.uploaded_by) || null : null,
+        });
         attachmentMap.set(a.task_id, existing);
       });
 
