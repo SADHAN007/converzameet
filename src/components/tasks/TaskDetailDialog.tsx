@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Loader2, Clock, User, FolderKanban, Paperclip, CheckCircle, XCircle, AlertTriangle, Send } from 'lucide-react';
+import { Loader2, Clock, User, FolderKanban, Paperclip, CheckCircle, XCircle, AlertTriangle, Send, FileText, Image as ImageIcon, Download } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -206,20 +206,58 @@ export default function TaskDetailDialog({ task, open, onOpenChange, onUpdateSta
           {/* Attachments */}
           {(task.attachments?.length || 0) > 0 && (
             <div>
-              <Label className="text-xs flex items-center gap-1"><Paperclip className="h-3 w-3" /> Attachments</Label>
-              <div className="mt-1 space-y-1">
-                {task.attachments?.map(a => (
-                  <a
-                    key={a.id}
-                    href={a.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline bg-muted/30 rounded px-2 py-1"
-                  >
-                    <Paperclip className="h-3 w-3" />
-                    {a.file_name}
-                  </a>
-                ))}
+              <Label className="text-xs flex items-center gap-1 mb-2"><Paperclip className="h-3 w-3" /> Attachments ({task.attachments?.length})</Label>
+              <div className="mt-1 space-y-2">
+                {task.attachments?.map(a => {
+                  const isImage = a.file_type?.startsWith('image/');
+                  const isPdf = a.file_type === 'application/pdf';
+                  const uploaderName = a.uploader_profile?.full_name || a.uploader_profile?.email || 'Unknown';
+                  const fileSize = a.file_size < 1024 * 1024
+                    ? `${(a.file_size / 1024).toFixed(1)} KB`
+                    : `${(a.file_size / (1024 * 1024)).toFixed(1)} MB`;
+
+                  return (
+                    <div key={a.id} className="border rounded-lg overflow-hidden bg-muted/20">
+                      {/* Image preview */}
+                      {isImage && (
+                        <a href={a.file_url} target="_blank" rel="noopener noreferrer" className="block">
+                          <img
+                            src={a.file_url}
+                            alt={a.file_name}
+                            className="w-full max-h-48 object-contain bg-background cursor-pointer hover:opacity-90 transition-opacity"
+                          />
+                        </a>
+                      )}
+                      {/* File info row */}
+                      <div className="flex items-center gap-2 p-2">
+                        <div className="flex-shrink-0">
+                          {isImage ? (
+                            <ImageIcon className="h-4 w-4 text-blue-500" />
+                          ) : isPdf ? (
+                            <FileText className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <Paperclip className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{a.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {fileSize} · Uploaded by {uploaderName}
+                            {a.created_at && ` · ${format(new Date(a.created_at), 'MMM dd, yyyy')}`}
+                          </p>
+                        </div>
+                        <a
+                          href={a.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0"
+                        >
+                          <Download className="h-4 w-4 text-primary hover:text-primary/80" />
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
