@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Loader2, Clock, User, FolderKanban, Paperclip, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Clock, User, FolderKanban, Paperclip, CheckCircle, XCircle, AlertTriangle, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import TaskFileUpload from './TaskFileUpload';
 import type { Task } from '@/hooks/useTasks';
 
 const STATUS_OPTIONS: { value: Task['status']; label: string }[] = [
@@ -256,6 +257,33 @@ export default function TaskDetailDialog({ task, open, onOpenChange, onUpdateSta
                 <XCircle className="h-4 w-4" /> Reject
               </Button>
             </div>
+          )}
+
+          {/* File Upload for assignee */}
+          {isAssignee && (
+            <TaskFileUpload taskId={task.id} onUploaded={() => onUpdateTask(task.id, {} as any)} />
+          )}
+
+          {/* Send for Approval button for assignee */}
+          {isAssignee && task.status === 'in_progress' && (
+            <Button
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  await onUpdateStatus(task.id, 'in_review');
+                  toast({ title: 'Sent for approval' });
+                } catch (e: any) {
+                  toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+              className="w-full gap-2 bg-yellow-600 hover:bg-yellow-700"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Send for Approval
+            </Button>
           )}
 
           {/* Add remark */}

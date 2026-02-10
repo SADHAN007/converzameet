@@ -9,6 +9,7 @@ import Header from './Header';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ChatBot from '@/components/chat/ChatBot';
 import IncomingCallAlert from '@/components/call/IncomingCallAlert';
+import NotificationToast from '@/components/notifications/NotificationToast';
 import StartCallDialog from '@/components/call/StartCallDialog';
 import FullPageLoader from '@/components/ui/FullPageLoader';
 
@@ -87,6 +88,9 @@ export default function DashboardLayout() {
       
       {/* Global Incoming Call Alert */}
       <IncomingCallAlert />
+      
+      {/* Global Notification Toast Alerts */}
+      <NotificationToast />
     </div>
   );
 }

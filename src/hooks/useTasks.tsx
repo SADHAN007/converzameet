@@ -112,6 +112,15 @@ export function useTasks() {
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      fetchTasks();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user, fetchTasks]);
+
   const createTask = async (taskData: {
     project_id: string;
     task_name: string;
