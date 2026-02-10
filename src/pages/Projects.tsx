@@ -87,6 +87,13 @@ export default function Projects() {
     fetchProjects();
   }, [user]);
 
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(fetchProjects, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const fetchProjects = async () => {
     if (!user) return;
 

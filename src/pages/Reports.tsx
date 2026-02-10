@@ -47,92 +47,93 @@ export default function Reports() {
   const [stats, setStats] = useState<ModuleStats>(initialStats);
   const [loading, setLoading] = useState(true);
 
+  const fetchAll = async () => {
+    if (!user) return;
+    try {
+      const [projectsRes, leadsRes, tasksRes, meetingsRes, momsRes, callsRes, messagesRes] = await Promise.all([
+        supabase.from('projects').select('id', { count: 'exact', head: true }),
+        supabase.from('leads').select('status, deal_value'),
+        supabase.from('tasks').select('status'),
+        supabase.from('meetings').select('status'),
+        supabase.from('moms').select('is_sent'),
+        supabase.from('call_requests').select('status'),
+        supabase.from('group_messages').select('id', { count: 'exact', head: true }),
+      ]);
+
+      const leads = leadsRes.data || [];
+      const totalLeads = leads.length;
+      const newLeads = leads.filter(l => l.status === 'new_lead').length;
+      const contacted = leads.filter(l => l.status === 'contacted').length;
+      const followUp = leads.filter(l => l.status === 'follow_up_required').length;
+      const meetingScheduled = leads.filter(l => l.status === 'meeting_scheduled').length;
+      const proposalSent = leads.filter(l => l.status === 'proposal_sent').length;
+      const converted = leads.filter(l => l.status === 'converted').length;
+      const lost = leads.filter(l => l.status === 'lost').length;
+      const notInterested = leads.filter(l => l.status === 'not_interested').length;
+      const totalDealValue = leads.reduce((sum, l) => sum + (Number(l.deal_value) || 0), 0);
+
+      const tasks = tasksRes.data || [];
+      const totalTasks = tasks.length;
+      const todo = tasks.filter(t => t.status === 'todo').length;
+      const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+      const inReview = tasks.filter(t => t.status === 'in_review').length;
+      const approved = tasks.filter(t => t.status === 'approved').length;
+      const rejected = tasks.filter(t => t.status === 'rejected').length;
+      const completedTasks = tasks.filter(t => t.status === 'completed').length;
+
+      const meetings = meetingsRes.data || [];
+      const totalMeetings = meetings.length;
+      const scheduled = meetings.filter(m => m.status === 'scheduled').length;
+      const completedMeetings = meetings.filter(m => m.status === 'completed').length;
+      const cancelled = meetings.filter(m => m.status === 'cancelled').length;
+
+      const moms = momsRes.data || [];
+      const totalMoms = moms.length;
+      const sentMoms = moms.filter(m => m.is_sent).length;
+
+      const calls = callsRes.data || [];
+      const totalCalls = calls.length;
+      const missedCalls = calls.filter(c => c.status === 'missed' || c.status === 'expired').length;
+      const answeredCalls = calls.filter(c => c.status === 'accepted').length;
+
+      setStats({
+        projects: { total: projectsRes.count || 0 },
+        leads: {
+          total: totalLeads, newLeads, contacted, followUp, meetingScheduled, proposalSent, converted, lost, notInterested,
+          conversionRate: totalLeads > 0 ? (converted / totalLeads) * 100 : 0,
+          totalDealValue,
+        },
+        tasks: {
+          total: totalTasks, todo, inProgress, inReview, approved, rejected, completed: completedTasks,
+          completionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
+        },
+        meetings: {
+          total: totalMeetings, scheduled, completed: completedMeetings, cancelled,
+          completionRate: totalMeetings > 0 ? (completedMeetings / totalMeetings) * 100 : 0,
+        },
+        moms: { total: totalMoms, sent: sentMoms, draft: totalMoms - sentMoms },
+        calls: {
+          total: totalCalls, missed: missedCalls, answered: answeredCalls,
+          missedRate: totalCalls > 0 ? (missedCalls / totalCalls) * 100 : 0,
+        },
+        messages: { total: messagesRes.count || 0 },
+      });
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAll();
+  }, [user]);
+
+  // Auto-refresh every 5 minutes
   useEffect(() => {
     if (!user) return;
-
-    const fetchAll = async () => {
-      try {
-        const [projectsRes, leadsRes, tasksRes, meetingsRes, momsRes, callsRes, messagesRes] = await Promise.all([
-          supabase.from('projects').select('id', { count: 'exact', head: true }),
-          supabase.from('leads').select('status, deal_value'),
-          supabase.from('tasks').select('status'),
-          supabase.from('meetings').select('status'),
-          supabase.from('moms').select('is_sent'),
-          supabase.from('call_requests').select('status'),
-          supabase.from('group_messages').select('id', { count: 'exact', head: true }),
-        ]);
-
-        // Leads
-        const leads = leadsRes.data || [];
-        const totalLeads = leads.length;
-        const newLeads = leads.filter(l => l.status === 'new_lead').length;
-        const contacted = leads.filter(l => l.status === 'contacted').length;
-        const followUp = leads.filter(l => l.status === 'follow_up_required').length;
-        const meetingScheduled = leads.filter(l => l.status === 'meeting_scheduled').length;
-        const proposalSent = leads.filter(l => l.status === 'proposal_sent').length;
-        const converted = leads.filter(l => l.status === 'converted').length;
-        const lost = leads.filter(l => l.status === 'lost').length;
-        const notInterested = leads.filter(l => l.status === 'not_interested').length;
-        const totalDealValue = leads.reduce((sum, l) => sum + (Number(l.deal_value) || 0), 0);
-
-        // Tasks
-        const tasks = tasksRes.data || [];
-        const totalTasks = tasks.length;
-        const todo = tasks.filter(t => t.status === 'todo').length;
-        const inProgress = tasks.filter(t => t.status === 'in_progress').length;
-        const inReview = tasks.filter(t => t.status === 'in_review').length;
-        const approved = tasks.filter(t => t.status === 'approved').length;
-        const rejected = tasks.filter(t => t.status === 'rejected').length;
-        const completedTasks = tasks.filter(t => t.status === 'completed').length;
-
-        // Meetings
-        const meetings = meetingsRes.data || [];
-        const totalMeetings = meetings.length;
-        const scheduled = meetings.filter(m => m.status === 'scheduled').length;
-        const completedMeetings = meetings.filter(m => m.status === 'completed').length;
-        const cancelled = meetings.filter(m => m.status === 'cancelled').length;
-
-        // MOMs
-        const moms = momsRes.data || [];
-        const totalMoms = moms.length;
-        const sentMoms = moms.filter(m => m.is_sent).length;
-
-        // Calls
-        const calls = callsRes.data || [];
-        const totalCalls = calls.length;
-        const missedCalls = calls.filter(c => c.status === 'missed' || c.status === 'expired').length;
-        const answeredCalls = calls.filter(c => c.status === 'accepted').length;
-
-        setStats({
-          projects: { total: projectsRes.count || 0 },
-          leads: {
-            total: totalLeads, newLeads, contacted, followUp, meetingScheduled, proposalSent, converted, lost, notInterested,
-            conversionRate: totalLeads > 0 ? (converted / totalLeads) * 100 : 0,
-            totalDealValue,
-          },
-          tasks: {
-            total: totalTasks, todo, inProgress, inReview, approved, rejected, completed: completedTasks,
-            completionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
-          },
-          meetings: {
-            total: totalMeetings, scheduled, completed: completedMeetings, cancelled,
-            completionRate: totalMeetings > 0 ? (completedMeetings / totalMeetings) * 100 : 0,
-          },
-          moms: { total: totalMoms, sent: sentMoms, draft: totalMoms - sentMoms },
-          calls: {
-            total: totalCalls, missed: missedCalls, answered: answeredCalls,
-            missedRate: totalCalls > 0 ? (missedCalls / totalCalls) * 100 : 0,
-          },
-          messages: { total: messagesRes.count || 0 },
-        });
-      } catch (error) {
-        console.error('Error fetching reports:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAll();
+    const interval = setInterval(fetchAll, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [user]);
 
   if (loading) {

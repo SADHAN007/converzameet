@@ -141,6 +141,13 @@ export default function MOMPage() {
     fetchData();
   }, [user]);
 
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const fetchData = async () => {
     if (!user) return;
 

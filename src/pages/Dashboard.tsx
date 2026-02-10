@@ -74,78 +74,80 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
 
+  const fetchDashboardData = async () => {
+    if (!user) return;
+    try {
+      const { data: projectsData } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(6);
+
+      if (projectsData) setProjects(projectsData);
+
+      const now = new Date().toISOString();
+      const { data: meetingsData } = await supabase
+        .from('meetings')
+        .select('*, projects(name, color)')
+        .gte('start_time', now)
+        .order('start_time', { ascending: true })
+        .limit(5);
+
+      if (meetingsData) {
+        setMeetings(meetingsData.map(m => ({
+          ...m,
+          projects: m.projects as { name: string; color: string } | undefined
+        })));
+      }
+
+      const [projectCount, meetingCount, momCount, leadsRes] = await Promise.all([
+        supabase.from('projects').select('id', { count: 'exact', head: true }),
+        supabase.from('meetings').select('id', { count: 'exact', head: true }).gte('start_time', now),
+        supabase.from('moms').select('id', { count: 'exact', head: true }),
+        supabase.from('leads').select('status, follow_up_date'),
+      ]);
+
+      setStats({
+        totalProjects: projectCount.count || 0,
+        totalMeetings: meetingCount.count || 0,
+        totalMoms: momCount.count || 0,
+        unreadMessages: 0,
+      });
+
+      if (leadsRes.data) {
+        const leads = leadsRes.data;
+        const total = leads.length;
+        const newLeads = leads.filter(l => l.status === 'new_lead').length;
+        const converted = leads.filter(l => l.status === 'converted').length;
+        const followUpRequired = leads.filter(l => l.status === 'follow_up_required').length;
+        const today = new Date().toISOString().split('T')[0];
+        const todayFollowUps = leads.filter(l => l.follow_up_date === today).length;
+        
+        setLeadStats({
+          total,
+          newLeads,
+          converted,
+          followUpRequired,
+          conversionRate: total > 0 ? (converted / total) * 100 : 0,
+          todayFollowUps,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [user]);
+
+  // Auto-refresh every 5 minutes
   useEffect(() => {
     if (!user) return;
-
-    const fetchDashboardData = async () => {
-      try {
-        // Fetch projects
-        const { data: projectsData } = await supabase
-          .from('projects')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(6);
-
-        if (projectsData) setProjects(projectsData);
-
-        // Fetch upcoming meetings
-        const now = new Date().toISOString();
-        const { data: meetingsData } = await supabase
-          .from('meetings')
-          .select('*, projects(name, color)')
-          .gte('start_time', now)
-          .order('start_time', { ascending: true })
-          .limit(5);
-
-        if (meetingsData) {
-          setMeetings(meetingsData.map(m => ({
-            ...m,
-            projects: m.projects as { name: string; color: string } | undefined
-          })));
-        }
-
-        // Fetch stats
-        const [projectCount, meetingCount, momCount, leadsRes] = await Promise.all([
-          supabase.from('projects').select('id', { count: 'exact', head: true }),
-          supabase.from('meetings').select('id', { count: 'exact', head: true }).gte('start_time', now),
-          supabase.from('moms').select('id', { count: 'exact', head: true }),
-          supabase.from('leads').select('status, follow_up_date'),
-        ]);
-
-        setStats({
-          totalProjects: projectCount.count || 0,
-          totalMeetings: meetingCount.count || 0,
-          totalMoms: momCount.count || 0,
-          unreadMessages: 0,
-        });
-
-        // Calculate lead stats
-        if (leadsRes.data) {
-          const leads = leadsRes.data;
-          const total = leads.length;
-          const newLeads = leads.filter(l => l.status === 'new_lead').length;
-          const converted = leads.filter(l => l.status === 'converted').length;
-          const followUpRequired = leads.filter(l => l.status === 'follow_up_required').length;
-          const today = new Date().toISOString().split('T')[0];
-          const todayFollowUps = leads.filter(l => l.follow_up_date === today).length;
-          
-          setLeadStats({
-            total,
-            newLeads,
-            converted,
-            followUpRequired,
-            conversionRate: total > 0 ? (converted / total) * 100 : 0,
-            todayFollowUps,
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [user]);
 
   // Sample chart data (in production, fetch from DB)

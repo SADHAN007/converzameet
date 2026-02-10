@@ -89,6 +89,13 @@ export function useLeads() {
     fetchLeads();
   }, [fetchLeads]);
 
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => fetchLeads(), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user, fetchLeads]);
+
   // Subscribe to realtime updates
   useEffect(() => {
     const channel = supabase
