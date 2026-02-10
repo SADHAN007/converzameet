@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, FolderKanban, Search, Users, MoreVertical, Trash2, Edit } from 'lucide-react';
+import { Plus, FolderKanban, Search, Users, MoreVertical, Trash2, Edit, UserPlus, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +34,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface Project {
   id: string;
@@ -35,6 +43,20 @@ interface Project {
   color: string;
   created_at: string;
   member_count?: number;
+}
+
+interface UserProfile {
+  id: string;
+  full_name: string | null;
+  email: string;
+  avatar_url: string | null;
+}
+
+interface ProjectMember {
+  id: string;
+  user_id: string;
+  role: string;
+  profile: UserProfile;
 }
 
 const colors = [
@@ -51,6 +73,15 @@ export default function Projects() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({ name: '', description: '', color: colors[0] });
   const [creating, setCreating] = useState(false);
+
+  // Add member state
+  const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -155,10 +186,96 @@ export default function Projects() {
     }
   };
 
+  const openMemberDialog = async (project: Project) => {
+    setSelectedProject(project);
+    setMemberDialogOpen(true);
+    setLoadingMembers(true);
+    setSelectedUserId('');
+
+    try {
+      // Fetch current members and all users in parallel
+      const [membersRes, usersRes] = await Promise.all([
+        supabase
+          .from('project_members')
+          .select('id, user_id, role')
+          .eq('project_id', project.id),
+        supabase
+          .from('profiles')
+          .select('id, full_name, email, avatar_url')
+          .order('full_name'),
+      ]);
+
+      const members = membersRes.data || [];
+      const users = usersRes.data || [];
+
+      // Map members with profile data
+      const membersWithProfiles: ProjectMember[] = members.map(m => ({
+        ...m,
+        profile: users.find(u => u.id === m.user_id) || { id: m.user_id, full_name: null, email: '', avatar_url: null },
+      }));
+
+      setProjectMembers(membersWithProfiles);
+      setAllUsers(users);
+    } catch (error) {
+      console.error('Error loading members:', error);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!selectedProject || !selectedUserId) return;
+
+    setAddingMember(true);
+    try {
+      const { error } = await supabase.from('project_members').insert({
+        project_id: selectedProject.id,
+        user_id: selectedUserId,
+        role: 'member',
+      });
+
+      if (error) {
+        if (error.code === '23505') {
+          toast({ title: 'Already a member', description: 'This user is already in the project', variant: 'destructive' });
+        } else {
+          throw error;
+        }
+      } else {
+        toast({ title: 'Member added', description: 'User has been added to the project' });
+        // Refresh members list and project count
+        await openMemberDialog(selectedProject);
+        fetchProjects();
+      }
+      setSelectedUserId('');
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to add member', variant: 'destructive' });
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!selectedProject) return;
+
+    try {
+      const { error } = await supabase.from('project_members').delete().eq('id', memberId);
+      if (error) throw error;
+
+      toast({ title: 'Member removed', description: 'User has been removed from the project' });
+      await openMemberDialog(selectedProject);
+      fetchProjects();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to remove member', variant: 'destructive' });
+    }
+  };
+
   const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const memberUserIds = new Set(projectMembers.map(m => m.user_id));
+  const availableUsers = allUsers.filter(u => !memberUserIds.has(u.id));
 
   if (loading) {
     return (
@@ -313,6 +430,10 @@ export default function Projects() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openMemberDialog(project)}>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Manage Members
+                          </DropdownMenuItem>
                           <DropdownMenuItem>
                             <Edit className="h-4 w-4 mr-2" />
                             Edit
@@ -331,10 +452,13 @@ export default function Projects() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => isAdmin && openMemberDialog(project)}
+                      className={`flex items-center gap-1 ${isAdmin ? 'hover:text-primary cursor-pointer' : ''}`}
+                    >
                       <Users className="h-4 w-4" />
                       <span>{project.member_count} members</span>
-                    </div>
+                    </button>
                     <span>{format(new Date(project.created_at), 'MMM d, yyyy')}</span>
                   </div>
                 </CardContent>
@@ -343,6 +467,80 @@ export default function Projects() {
           ))}
         </div>
       )}
+
+      {/* Manage Members Dialog */}
+      <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Manage Members — {selectedProject?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Add or remove users from this project.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Add member */}
+          <div className="flex gap-2">
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Select a user to add" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableUsers.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.full_name || u.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleAddMember} disabled={!selectedUserId || addingMember} size="sm">
+              <UserPlus className="h-4 w-4 mr-1" />
+              {addingMember ? 'Adding...' : 'Add'}
+            </Button>
+          </div>
+
+          {/* Members list */}
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {loadingMembers ? (
+              <div className="flex justify-center py-4">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            ) : projectMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No members yet</p>
+            ) : (
+              projectMembers.map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-2 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={member.profile.avatar_url || ''} />
+                      <AvatarFallback className="text-xs">
+                        {(member.profile.full_name || member.profile.email || '?').charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium">{member.profile.full_name || member.profile.email}</p>
+                      <p className="text-xs text-muted-foreground">{member.profile.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">{member.role}</Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={() => handleRemoveMember(member.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
