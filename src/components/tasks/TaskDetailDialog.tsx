@@ -259,8 +259,8 @@ export default function TaskDetailDialog({ task, open, onOpenChange, onUpdateSta
             </div>
           )}
 
-          {/* File Upload for assignee */}
-          {isAssignee && (
+          {/* File Upload for assignee, digital marketers, and admins */}
+          {(isAssignee || isDigitalMarketer || isAdmin) && (
             <TaskFileUpload taskId={task.id} onUploaded={() => onUpdateTask(task.id, {} as any)} />
           )}
 
