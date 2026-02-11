@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, FolderKanban, Search, Users, MoreVertical, Trash2, Edit, UserPlus, X } from 'lucide-react';
+import { Plus, FolderKanban, Search, Users, MoreVertical, Trash2, Edit, UserPlus, X, Camera, ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,7 @@ interface Project {
   name: string;
   description: string | null;
   color: string;
+  logo_url: string | null;
   created_at: string;
   member_count?: number;
 }
@@ -73,6 +74,9 @@ export default function Projects() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({ name: '', description: '', color: colors[0] });
   const [creating, setCreating] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Add member state
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
@@ -126,13 +130,33 @@ export default function Projects() {
     }
   };
 
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid file', description: 'Please select an image file', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Logo must be under 2MB', variant: 'destructive' });
+      return;
+    }
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const uploadLogo = async (projectId: string, file: File): Promise<string | null> => {
+    const ext = file.name.split('.').pop();
+    const path = `${projectId}/logo.${ext}`;
+    const { error } = await supabase.storage.from('project-logos').upload(path, file, { upsert: true });
+    if (error) throw error;
+    const { data: urlData } = supabase.storage.from('project-logos').getPublicUrl(path);
+    return urlData.publicUrl;
+  };
+
   const handleCreateProject = async () => {
     if (!newProject.name.trim()) {
-      toast({
-        title: 'Name required',
-        description: 'Please enter a project name',
-        variant: 'destructive',
-      });
+      toast({ title: 'Name required', description: 'Please enter a project name', variant: 'destructive' });
       return;
     }
 
@@ -151,20 +175,21 @@ export default function Projects() {
 
       if (error) throw error;
 
-      setProjects([{ ...data, member_count: 0 }, ...projects]);
+      let logoUrl: string | null = null;
+      if (logoFile) {
+        logoUrl = await uploadLogo(data.id, logoFile);
+        await supabase.from('projects').update({ logo_url: logoUrl }).eq('id', data.id);
+      }
+
+      setProjects([{ ...data, logo_url: logoUrl, member_count: 0 }, ...projects]);
       setNewProject({ name: '', description: '', color: colors[0] });
+      setLogoFile(null);
+      setLogoPreview(null);
       setCreateDialogOpen(false);
-      toast({
-        title: 'Project created',
-        description: 'Your new project is ready',
-      });
+      toast({ title: 'Project created', description: 'Your new project is ready' });
     } catch (error: any) {
       console.error('Error creating project:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to create project',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to create project', variant: 'destructive' });
     } finally {
       setCreating(false);
     }
@@ -355,6 +380,36 @@ export default function Projects() {
                     ))}
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label>Project Logo</Label>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoSelect}
+                  />
+                  <div
+                    onClick={() => logoInputRef.current?.click()}
+                    className="relative cursor-pointer group/logo border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all hover:bg-primary/5"
+                  >
+                    {logoPreview ? (
+                      <div className="relative">
+                        <img src={logoPreview} alt="Logo preview" className="h-20 w-20 rounded-xl object-cover shadow-md" />
+                        <div className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center">
+                          <Camera className="h-5 w-5 text-white" />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center">
+                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Click to upload logo (max 2MB)</p>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
@@ -409,10 +464,14 @@ export default function Projects() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
                       <div
-                        className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: project.color }}
+                        className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm"
+                        style={{ backgroundColor: project.logo_url ? 'transparent' : project.color }}
                       >
-                        <FolderKanban className="h-5 w-5 text-white" />
+                        {project.logo_url ? (
+                          <img src={project.logo_url} alt={project.name} className="h-full w-full object-cover rounded-lg" />
+                        ) : (
+                          <FolderKanban className="h-5 w-5 text-white" />
+                        )}
                       </div>
                       <div>
                         <Link to={`/projects/${project.id}`}>
