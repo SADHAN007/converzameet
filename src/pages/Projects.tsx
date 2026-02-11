@@ -78,6 +78,15 @@ export default function Projects() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
+  // Edit project state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editProject, setEditProject] = useState<Project | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', description: '', color: colors[0] });
+  const [editLogoFile, setEditLogoFile] = useState<File | null>(null);
+  const [editLogoPreview, setEditLogoPreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const editLogoInputRef = useRef<HTMLInputElement>(null);
+
   // Add member state
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -215,6 +224,73 @@ export default function Projects() {
         description: error.message || 'Failed to delete project',
         variant: 'destructive',
       });
+    }
+  };
+
+  const openEditDialog = (project: Project) => {
+    setEditProject(project);
+    setEditForm({ name: project.name, description: project.description || '', color: project.color });
+    setEditLogoFile(null);
+    setEditLogoPreview(project.logo_url || null);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid file', description: 'Please select an image file', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Logo must be under 2MB', variant: 'destructive' });
+      return;
+    }
+    setEditLogoFile(file);
+    setEditLogoPreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveLogo = () => {
+    setEditLogoFile(null);
+    setEditLogoPreview(null);
+  };
+
+  const handleUpdateProject = async () => {
+    if (!editProject || !editForm.name.trim()) {
+      toast({ title: 'Name required', description: 'Please enter a project name', variant: 'destructive' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let logoUrl = editProject.logo_url;
+
+      if (editLogoFile) {
+        logoUrl = await uploadLogo(editProject.id, editLogoFile);
+      } else if (!editLogoPreview && editProject.logo_url) {
+        // User removed the logo
+        logoUrl = null;
+      }
+
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          name: editForm.name.trim(),
+          description: editForm.description.trim() || null,
+          color: editForm.color,
+          logo_url: logoUrl,
+        })
+        .eq('id', editProject.id);
+
+      if (error) throw error;
+
+      setProjects(projects.map(p => p.id === editProject.id ? { ...p, name: editForm.name.trim(), description: editForm.description.trim() || null, color: editForm.color, logo_url: logoUrl } : p));
+      setEditDialogOpen(false);
+      toast({ title: 'Project updated', description: 'Changes saved successfully' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to update project', variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -500,7 +576,7 @@ export default function Projects() {
                             <UserPlus className="h-4 w-4 mr-2" />
                             Manage Members
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditDialog(project)}>
                             <Edit className="h-4 w-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
@@ -605,6 +681,92 @@ export default function Projects() {
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Project Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>Update project details and logo.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Project Name</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                placeholder="Enter project name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                placeholder="Brief description"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <div className="flex gap-2">
+                {colors.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setEditForm({ ...editForm, color })}
+                    className={`h-8 w-8 rounded-full transition-all ${
+                      editForm.color === color ? 'ring-2 ring-offset-2 ring-primary' : ''
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Project Logo</Label>
+              <input
+                ref={editLogoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleEditLogoSelect}
+              />
+              <div
+                onClick={() => editLogoInputRef.current?.click()}
+                className="relative cursor-pointer group/logo border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all hover:bg-primary/5"
+              >
+                {editLogoPreview ? (
+                  <div className="relative">
+                    <img src={editLogoPreview} alt="Logo preview" className="h-20 w-20 rounded-xl object-cover shadow-md" />
+                    <div className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center">
+                      <Camera className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center">
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Click to upload logo (max 2MB)</p>
+                  </>
+                )}
+              </div>
+              {editLogoPreview && (
+                <Button variant="ghost" size="sm" className="text-destructive text-xs" onClick={(e) => { e.stopPropagation(); handleRemoveLogo(); }}>
+                  <Trash2 className="h-3 w-3 mr-1" /> Remove Logo
+                </Button>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateProject} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </motion.div>
