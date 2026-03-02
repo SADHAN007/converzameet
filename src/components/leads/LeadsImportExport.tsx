@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,12 +15,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { Download, Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { Lead, LEAD_STATUS_OPTIONS, LeadStatus } from '@/types/leads';
 
 interface LeadsImportExportProps {
   leads: Lead[];
-  onImport: (leads: Partial<Lead>[], onProgress?: (current: number, total: number, success: number) => void) => Promise<{ success: number; errors: string[] }>;
+  onImport: (leads: Partial<Lead>[], onProgress?: (current: number, total: number, success: number) => boolean | void) => Promise<{ success: number; errors: string[] }>;
 }
 
 const CSV_HEADERS = [
@@ -55,6 +55,7 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
   const [importResult, setImportResult] = useState<{ success: number; errors: string[] } | null>(null);
   const [previewData, setPreviewData] = useState<Partial<Lead>[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cancelledRef = useRef(false);
 
   const parseCSV = (csvText: string): Partial<Lead>[] => {
     const lines = csvText.split('\n').filter(line => line.trim());
@@ -188,17 +189,25 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
     setImportProgress(0);
     setImportCurrent(0);
     setImportSuccessCount(0);
+    cancelledRef.current = false;
 
     const result = await onImport(previewData, (current, total, success) => {
+      if (cancelledRef.current) return true;
       setImportCurrent(current);
       setImportSuccessCount(success);
       setImportProgress(Math.round((current / total) * 100));
     });
     
-    setImportProgress(100);
+    if (!cancelledRef.current) {
+      setImportProgress(100);
+    }
     setImportResult(result);
     setImporting(false);
   };
+
+  const handleCancelImport = useCallback(() => {
+    cancelledRef.current = true;
+  }, []);
 
   const handleExport = () => {
     const csvContent = [
@@ -374,6 +383,15 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
                   <span>{importSuccessCount} imported successfully</span>
                   <span>{importProgress}%</span>
                 </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={handleCancelImport}
+                >
+                  <XCircle className="h-4 w-4" />
+                  Cancel Import
+                </Button>
               </div>
             )}
 
