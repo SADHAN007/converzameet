@@ -19,8 +19,9 @@ import { SetReminderDialog } from './SetReminderDialog';
 import { BulkAssignBar } from './BulkAssignBar';
 import { ViewLeadDialog } from './ViewLeadDialog';
 import { EditLeadDialog } from './EditLeadDialog';
+import { LogCallDialog } from './LogCallDialog';
 import { format } from 'date-fns';
-import { ExternalLink, Trash2, UserPlus, IndianRupee, Eye, TableIcon, Pencil } from 'lucide-react';
+import { ExternalLink, Trash2, UserPlus, IndianRupee, Eye, TableIcon, Pencil, PhoneCall } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 
@@ -46,6 +47,7 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [logCallDialogOpen, setLogCallDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [assignees, setAssignees] = useState<Record<string, TeamMember>>({});
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
@@ -90,6 +92,11 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
   const handleEditLead = (lead: Lead) => {
     setSelectedLead(lead);
     setEditDialogOpen(true);
+  };
+
+  const handleLogCall = (lead: Lead) => {
+    setSelectedLead(lead);
+    setLogCallDialogOpen(true);
   };
 
   const handleStatusSelect = (lead: Lead, newStatus: LeadStatus) => {
@@ -367,6 +374,15 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
                       <Button
                         variant="ghost"
                         size="icon"
+                        onClick={() => handleLogCall(lead)}
+                        title="Log call"
+                        className="text-primary hover:text-primary"
+                      >
+                        <PhoneCall className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleEditLead(lead)}
                         title="Edit lead"
                       >
@@ -419,6 +435,12 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
             onOpenChange={setEditDialogOpen}
             lead={selectedLead}
             onSave={onUpdateLead}
+          />
+          <LogCallDialog
+            open={logCallDialogOpen}
+            onOpenChange={setLogCallDialogOpen}
+            lead={selectedLead}
+            onStatusUpdate={(id, status) => onStatusChange(id, status as LeadStatus)}
           />
         </>
       )}

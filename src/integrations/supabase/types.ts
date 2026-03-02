@@ -243,6 +243,44 @@ export type Database = {
           },
         ]
       }
+      lead_call_logs: {
+        Row: {
+          call_outcome: string
+          called_by: string
+          created_at: string
+          id: string
+          interest_status: string | null
+          lead_id: string
+          notes: string | null
+        }
+        Insert: {
+          call_outcome: string
+          called_by: string
+          created_at?: string
+          id?: string
+          interest_status?: string | null
+          lead_id: string
+          notes?: string | null
+        }
+        Update: {
+          call_outcome?: string
+          called_by?: string
+          created_at?: string
+          id?: string
+          interest_status?: string | null
+          lead_id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_call_logs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_reminders: {
         Row: {
           created_at: string | null

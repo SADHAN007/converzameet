@@ -17,7 +17,8 @@ import {
   MessageSquare,
   Sparkles,
   Send,
-  History
+  History,
+  PhoneCall
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -47,6 +48,7 @@ const ACTIVITY_ICONS: Record<string, React.ElementType> = {
   assignment: UserPlus,
   deal_value: DollarSign,
   note: MessageSquare,
+  call_logged: PhoneCall,
 };
 
 const ACTIVITY_COLORS: Record<string, string> = {
@@ -55,6 +57,7 @@ const ACTIVITY_COLORS: Record<string, string> = {
   assignment: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
   deal_value: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   note: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
+  call_logged: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400',
 };
 
 export function LeadActivityTimeline({ leadId }: LeadActivityTimelineProps) {
@@ -197,6 +200,8 @@ export function LeadActivityTimeline({ leadId }: LeadActivityTimelineProps) {
         );
       case 'note':
         return 'added a note';
+      case 'call_logged':
+        return 'logged a call';
       default:
         return activity.activity_type;
     }
