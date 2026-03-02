@@ -20,7 +20,7 @@ import { Lead, LEAD_STATUS_OPTIONS, LeadStatus } from '@/types/leads';
 
 interface LeadsImportExportProps {
   leads: Lead[];
-  onImport: (leads: Partial<Lead>[], onProgress?: (current: number, total: number, success: number) => boolean | void) => Promise<{ success: number; errors: string[] }>;
+  onImport: (leads: Partial<Lead>[], onProgress?: (current: number, total: number, success: number) => boolean | void) => Promise<{ success: number; errors: string[]; duration?: number }>;
 }
 
 const CSV_HEADERS = [
@@ -52,7 +52,7 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
-  const [importResult, setImportResult] = useState<{ success: number; errors: string[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ success: number; errors: string[]; duration?: number } | null>(null);
   const [previewData, setPreviewData] = useState<Partial<Lead>[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cancelledRef = useRef(false);
@@ -406,6 +406,9 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
                 <AlertDescription>
                   <p className="font-medium">
                     Successfully imported {importResult.success} leads
+                    {importResult.duration !== undefined && (
+                      <span className="text-muted-foreground font-normal"> in {importResult.duration < 60 ? `${importResult.duration}s` : `${Math.floor(importResult.duration / 60)}m ${importResult.duration % 60}s`}</span>
+                    )}
                   </p>
                   {importResult.errors.length > 0 && (
                     <ul className="mt-2 text-sm list-disc list-inside">
