@@ -38,6 +38,7 @@ export interface Lead {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  is_imported: boolean;
 }
 
 export interface LeadFilters {
