@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useLeads } from '@/hooks/useLeads';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -256,13 +256,11 @@ export default function Leads() {
             </TabsTrigger>
           </TabsList>
 
-          <AnimatePresence mode="wait">
-            <TabsContent value="analytics" className="space-y-6">
+          <TabsContent value="analytics" className="space-y-6">
               <motion.div
                 key="analytics"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
                 {loading ? (
@@ -282,7 +280,6 @@ export default function Leads() {
                 key="table"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
                 className="space-y-6"
               >
@@ -387,7 +384,6 @@ export default function Leads() {
                 key="imported"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
                 <ImportedLeadsTab teamMembers={teamMembers} />
@@ -399,13 +395,11 @@ export default function Leads() {
                 key="assignments"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
                 <AssignmentReport teamMembers={teamMembers} />
               </motion.div>
             </TabsContent>
-          </AnimatePresence>
         </Tabs>
       </motion.div>
     </motion.div>
