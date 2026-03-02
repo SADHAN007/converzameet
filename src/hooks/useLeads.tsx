@@ -295,12 +295,13 @@ export function useLeads() {
   };
 
   const bulkImportLeads = async (leadsData: Partial<Lead>[], onProgress?: (current: number, total: number, success: number) => boolean | void) => {
-    if (!user) return { success: 0, errors: ['Not authenticated'] };
+    if (!user) return { success: 0, errors: [], duration: 0 };
 
+    const startTime = Date.now();
     const errors: string[] = [];
     let success = 0;
     let cancelled = false;
-    const BATCH_SIZE = 50;
+    const BATCH_SIZE = 100;
 
     const allInsertData = leadsData.map((leadData, i) => ({
       company_name: leadData.company_name || `Import ${i + 1}`,
@@ -345,22 +346,24 @@ export function useLeads() {
       }
     }
 
+    const duration = Math.round((Date.now() - startTime) / 1000);
+
     if (cancelled) {
       toast({
         title: 'Import Cancelled',
-        description: `Imported ${success} of ${leadsData.length} leads before cancellation`,
+        description: `Imported ${success} of ${leadsData.length} leads in ${duration}s`,
         variant: 'destructive',
       });
     } else if (success > 0) {
       toast({
         title: 'Import Complete',
-        description: `Successfully imported ${success} leads`,
+        description: `Successfully imported ${success} leads in ${duration}s`,
       });
     }
     
     if (success > 0) fetchLeads();
 
-    return { success, errors };
+    return { success, errors, duration };
   };
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
