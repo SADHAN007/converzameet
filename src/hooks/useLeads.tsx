@@ -293,13 +293,14 @@ export function useLeads() {
     }
   };
 
-  const bulkImportLeads = async (leadsData: Partial<Lead>[]) => {
+  const bulkImportLeads = async (leadsData: Partial<Lead>[], onProgress?: (current: number, total: number, success: number) => void) => {
     if (!user) return { success: 0, errors: ['Not authenticated'] };
 
     const errors: string[] = [];
     let success = 0;
 
     for (let i = 0; i < leadsData.length; i++) {
+      onProgress?.(i + 1, leadsData.length, success);
       const leadData = leadsData[i];
       try {
         const insertData = {
