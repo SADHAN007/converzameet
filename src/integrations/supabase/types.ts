@@ -331,23 +331,28 @@ export type Database = {
           assigned_at: string | null
           assigned_by: string | null
           assigned_to: string | null
+          city: string | null
           company_name: string
           contact_number: string
           conversion_date: string | null
           created_at: string
           created_by: string | null
           deal_value: number | null
+          email: string | null
           follow_up_date: string | null
           id: string
           latitude: number | null
           lead_source: string | null
           longitude: number | null
           other_service: string | null
+          pin: string | null
           poc_name: string | null
           poc_number: string | null
           remarks: string | null
           requirements: string[]
+          sectors: string[] | null
           serial_number: string
+          state: string | null
           status: Database["public"]["Enums"]["lead_status"]
           updated_at: string
           website: string | null
@@ -357,23 +362,28 @@ export type Database = {
           assigned_at?: string | null
           assigned_by?: string | null
           assigned_to?: string | null
+          city?: string | null
           company_name: string
           contact_number: string
           conversion_date?: string | null
           created_at?: string
           created_by?: string | null
           deal_value?: number | null
+          email?: string | null
           follow_up_date?: string | null
           id?: string
           latitude?: number | null
           lead_source?: string | null
           longitude?: number | null
           other_service?: string | null
+          pin?: string | null
           poc_name?: string | null
           poc_number?: string | null
           remarks?: string | null
           requirements?: string[]
+          sectors?: string[] | null
           serial_number: string
+          state?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
           website?: string | null
@@ -383,23 +393,28 @@ export type Database = {
           assigned_at?: string | null
           assigned_by?: string | null
           assigned_to?: string | null
+          city?: string | null
           company_name?: string
           contact_number?: string
           conversion_date?: string | null
           created_at?: string
           created_by?: string | null
           deal_value?: number | null
+          email?: string | null
           follow_up_date?: string | null
           id?: string
           latitude?: number | null
           lead_source?: string | null
           longitude?: number | null
           other_service?: string | null
+          pin?: string | null
           poc_name?: string | null
           poc_number?: string | null
           remarks?: string | null
           requirements?: string[]
+          sectors?: string[] | null
           serial_number?: string
+          state?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
           website?: string | null

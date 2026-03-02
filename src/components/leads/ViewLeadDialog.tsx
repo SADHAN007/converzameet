@@ -23,7 +23,9 @@ import {
   Clock,
   Tag,
   Info,
-  History
+  History,
+  Mail,
+  Briefcase
 } from 'lucide-react';
 
 interface ViewLeadDialogProps {
@@ -43,6 +45,8 @@ export function ViewLeadDialog({ open, onOpenChange, lead, assigneeName }: ViewL
       maximumFractionDigits: 0,
     }).format(value);
   };
+
+  const fullAddress = [lead.address, lead.city, lead.state, lead.pin].filter(Boolean).join(', ');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,12 +102,21 @@ export function ViewLeadDialog({ open, onOpenChange, lead, assigneeName }: ViewL
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
                     <div>
-                      <p className="text-sm text-muted-foreground">Company Contact</p>
+                      <p className="text-sm text-muted-foreground">Mobile No</p>
                       <p className="font-medium">{lead.contact_number}</p>
                     </div>
+                    {lead.email && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className="font-medium flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          {lead.email}
+                        </p>
+                      </div>
+                    )}
                     {lead.website && (
                       <div>
-                        <p className="text-sm text-muted-foreground">Website</p>
+                        <p className="text-sm text-muted-foreground">WebLink</p>
                         <a 
                           href={lead.website} 
                           target="_blank" 
@@ -115,12 +128,12 @@ export function ViewLeadDialog({ open, onOpenChange, lead, assigneeName }: ViewL
                         </a>
                       </div>
                     )}
-                    {lead.address && (
+                    {fullAddress && (
                       <div className="md:col-span-2">
                         <p className="text-sm text-muted-foreground">Address</p>
                         <p className="font-medium flex items-start gap-1">
                           <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                          {lead.address}
+                          {fullAddress}
                         </p>
                       </div>
                     )}
@@ -149,6 +162,26 @@ export function ViewLeadDialog({ open, onOpenChange, lead, assigneeName }: ViewL
                             <p className="font-medium">{lead.poc_number}</p>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Sectors */}
+                {lead.sectors && lead.sectors.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-muted-foreground" />
+                        Sectors
+                      </h4>
+                      <div className="flex flex-wrap gap-2 pl-6">
+                        {lead.sectors.map((sector) => (
+                          <Badge key={sector} variant="outline" className="bg-primary/5">
+                            {sector}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   </>

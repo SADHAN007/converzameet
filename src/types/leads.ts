@@ -16,8 +16,13 @@ export interface Lead {
   poc_name: string | null;
   poc_number: string | null;
   address: string | null;
+  city: string | null;
+  pin: string | null;
+  state: string | null;
+  email: string | null;
   website: string | null;
   requirements: string[];
+  sectors: string[] | null;
   other_service: string | null;
   lead_source: string | null;
   status: LeadStatus;
@@ -63,5 +68,21 @@ export const SERVICE_OPTIONS = [
   'SEO Services',
   'Cloud Solutions',
   'IT Consulting',
+  'Other',
+];
+
+export const SECTOR_OPTIONS = [
+  'IT & Software',
+  'Healthcare',
+  'Education',
+  'Manufacturing',
+  'Retail & E-commerce',
+  'Real Estate',
+  'Finance & Banking',
+  'Hospitality',
+  'Logistics',
+  'Agriculture',
+  'Media & Entertainment',
+  'Government',
   'Other',
 ];

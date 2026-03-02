@@ -21,7 +21,7 @@ import { ViewLeadDialog } from './ViewLeadDialog';
 import { EditLeadDialog } from './EditLeadDialog';
 import { LogCallDialog } from './LogCallDialog';
 import { format } from 'date-fns';
-import { ExternalLink, Trash2, UserPlus, IndianRupee, Eye, TableIcon, Pencil, PhoneCall } from 'lucide-react';
+import { ExternalLink, Trash2, UserPlus, IndianRupee, Eye, TableIcon, Pencil, PhoneCall, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 
@@ -191,8 +191,9 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
               <TableHead className="font-semibold">Serial No.</TableHead>
               <TableHead className="font-semibold">Company</TableHead>
               <TableHead className="font-semibold">Contact</TableHead>
-              <TableHead className="font-semibold">POC</TableHead>
-              <TableHead className="font-semibold">Requirements</TableHead>
+              <TableHead className="font-semibold">Email</TableHead>
+              <TableHead className="font-semibold">City</TableHead>
+              <TableHead className="font-semibold">Sectors</TableHead>
               <TableHead className="font-semibold">Assigned To</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Deal Value</TableHead>
@@ -246,12 +247,20 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
                     )}
                   </TableCell>
                   <TableCell>
-                    {lead.poc_name ? (
-                      <div>
-                        <div className="font-medium">{lead.poc_name}</div>
-                        {lead.poc_number && (
-                          <div className="text-xs text-muted-foreground">{lead.poc_number}</div>
-                        )}
+                    {lead.email ? (
+                      <a href={`mailto:${lead.email}`} className="text-sm text-primary hover:underline flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        <span className="truncate max-w-[150px]">{lead.email}</span>
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {lead.city ? (
+                      <div className="text-sm">
+                        <div>{lead.city}</div>
+                        {lead.state && <div className="text-xs text-muted-foreground">{lead.state}</div>}
                       </div>
                     ) : (
                       <span className="text-muted-foreground">-</span>
@@ -259,18 +268,21 @@ export function LeadsTable({ leads, onStatusChange, onDelete, onAssign, onBulkAs
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1 max-w-[200px]">
-                      {lead.requirements.slice(0, 2).map((req) => (
+                      {(lead.sectors || []).slice(0, 2).map((sector) => (
                         <span
-                          key={req}
-                          className="text-xs bg-secondary px-2 py-0.5 rounded"
+                          key={sector}
+                          className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded"
                         >
-                          {req}
+                          {sector}
                         </span>
                       ))}
-                      {lead.requirements.length > 2 && (
+                      {(lead.sectors || []).length > 2 && (
                         <span className="text-xs text-muted-foreground">
-                          +{lead.requirements.length - 2} more
+                          +{(lead.sectors || []).length - 2}
                         </span>
+                      )}
+                      {(!lead.sectors || lead.sectors.length === 0) && (
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </div>
                   </TableCell>
