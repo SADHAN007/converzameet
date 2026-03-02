@@ -10,6 +10,7 @@ import { LeadsAnalytics } from '@/components/leads/LeadsAnalytics';
 import { LeadsImportExport } from '@/components/leads/LeadsImportExport';
 import { ImportedLeadsTab } from '@/components/leads/ImportedLeadsTab';
 import { AssignmentReport } from '@/components/leads/AssignmentReport';
+import { ImportRunHistory } from '@/components/leads/ImportRunHistory';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,7 +29,8 @@ import {
   Sparkles,
   RefreshCw,
   Upload,
-  ClipboardList
+  ClipboardList,
+  History
 } from 'lucide-react';
 import { LeadStatus } from '@/types/leads';
 import { supabase } from '@/integrations/supabase/client';
@@ -254,6 +256,10 @@ export default function Leads() {
               <BarChart3 className="h-4 w-4" />
               Analytics
             </TabsTrigger>
+            <TabsTrigger value="import-history" className="gap-2 data-[state=active]:shadow-sm">
+              <History className="h-4 w-4" />
+              Import History
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics" className="space-y-6">
@@ -398,6 +404,17 @@ export default function Leads() {
                 transition={{ duration: 0.2 }}
               >
                 <AssignmentReport teamMembers={teamMembers} />
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="import-history" className="space-y-6">
+              <motion.div
+                key="import-history"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ImportRunHistory />
               </motion.div>
             </TabsContent>
         </Tabs>

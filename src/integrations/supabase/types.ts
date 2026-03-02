@@ -281,6 +281,45 @@ export type Database = {
           },
         ]
       }
+      lead_import_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_count: number
+          errors: string[] | null
+          id: string
+          started_at: string
+          status: string
+          success_count: number
+          total_rows: number
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_count?: number
+          errors?: string[] | null
+          id?: string
+          started_at?: string
+          status?: string
+          success_count?: number
+          total_rows?: number
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_count?: number
+          errors?: string[] | null
+          id?: string
+          started_at?: string
+          status?: string
+          success_count?: number
+          total_rows?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       lead_reminders: {
         Row: {
           created_at: string | null
