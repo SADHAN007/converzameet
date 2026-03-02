@@ -298,6 +298,50 @@ export function useLeads() {
     if (!user) return { success: 0, errors: [], duration: 0 };
 
     const startTime = Date.now();
+    const BACKEND_THRESHOLD = 500;
+
+    // For large imports, use the backend edge function
+    if (leadsData.length >= BACKEND_THRESHOLD) {
+      onProgress?.(0, leadsData.length, 0);
+      
+      // Send data in chunks to the edge function to avoid request size limits
+      const CHUNK_SIZE = 10000;
+      let totalSuccess = 0;
+      const allErrors: string[] = [];
+
+      for (let i = 0; i < leadsData.length; i += CHUNK_SIZE) {
+        const chunk = leadsData.slice(i, i + CHUNK_SIZE);
+        
+        try {
+          const { data, error } = await supabase.functions.invoke('bulk-import-leads', {
+            body: { leads: chunk },
+          });
+
+          if (error) throw error;
+          
+          totalSuccess += data.success || 0;
+          if (data.errors?.length) allErrors.push(...data.errors);
+        } catch (err: any) {
+          allErrors.push(`Chunk ${Math.floor(i / CHUNK_SIZE) + 1}: ${err.message}`);
+        }
+
+        onProgress?.(Math.min(i + CHUNK_SIZE, leadsData.length), leadsData.length, totalSuccess);
+      }
+
+      const duration = Math.round((Date.now() - startTime) / 1000);
+
+      if (totalSuccess > 0) {
+        toast({
+          title: 'Import Complete',
+          description: `Successfully imported ${totalSuccess} leads in ${duration}s`,
+        });
+        fetchLeads();
+      }
+
+      return { success: totalSuccess, errors: allErrors, duration };
+    }
+
+    // For smaller imports, use direct client-side batch insert
     const errors: string[] = [];
     let success = 0;
     let cancelled = false;
