@@ -83,7 +83,8 @@ export function useLeads() {
     } finally {
       setLoading(false);
     }
-  }, [user, filters, page, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, filters, page]);
 
   useEffect(() => {
     fetchLeads();
