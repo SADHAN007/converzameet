@@ -20,7 +20,7 @@ import { Lead, LEAD_STATUS_OPTIONS, LeadStatus } from '@/types/leads';
 
 interface LeadsImportExportProps {
   leads: Lead[];
-  onImport: (leads: Partial<Lead>[]) => Promise<{ success: number; errors: string[] }>;
+  onImport: (leads: Partial<Lead>[], onProgress?: (current: number, total: number, success: number) => void) => Promise<{ success: number; errors: string[] }>;
 }
 
 const CSV_HEADERS = [
@@ -178,13 +178,22 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
     reader.readAsText(file);
   };
 
+  const [importCurrent, setImportCurrent] = useState(0);
+  const [importSuccessCount, setImportSuccessCount] = useState(0);
+
   const handleImport = async () => {
     if (previewData.length === 0) return;
 
     setImporting(true);
     setImportProgress(0);
+    setImportCurrent(0);
+    setImportSuccessCount(0);
 
-    const result = await onImport(previewData);
+    const result = await onImport(previewData, (current, total, success) => {
+      setImportCurrent(current);
+      setImportSuccessCount(success);
+      setImportProgress(Math.round((current / total) * 100));
+    });
     
     setImportProgress(100);
     setImportResult(result);
@@ -350,12 +359,21 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
 
             {/* Progress */}
             {importing && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Importing leads...</span>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <span className="text-sm font-medium">Importing leads...</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {importCurrent} / {previewData.length}
+                  </span>
                 </div>
-                <Progress value={importProgress} />
+                <Progress value={importProgress} className="h-2.5" />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{importSuccessCount} imported successfully</span>
+                  <span>{importProgress}%</span>
+                </div>
               </div>
             )}
 
