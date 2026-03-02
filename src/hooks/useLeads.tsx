@@ -74,6 +74,10 @@ export function useLeads() {
       setLeads((data as Lead[]) || []);
       setTotalCount(count || 0);
     } catch (error: any) {
+      // Ignore abort errors (caused by rapid re-fetches)
+      if (error?.message?.includes('AbortError') || error?.code === 'ABORT_ERR') {
+        return;
+      }
       console.error('Error fetching leads:', error);
       toast({
         title: 'Error',
@@ -97,20 +101,24 @@ export function useLeads() {
     return () => clearInterval(interval);
   }, [user, fetchLeads]);
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates (debounced to avoid flood during bulk import)
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const channel = supabase
       .channel('leads-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leads' },
         () => {
-          fetchLeads();
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => fetchLeads(), 2000);
         }
       )
       .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
   }, [fetchLeads]);
