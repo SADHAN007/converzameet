@@ -302,10 +302,29 @@ export function useLeads() {
     }
   };
 
+  const logImportRun = async (totalRows: number, successCount: number, errorCount: number, errors: string[], status: string, startedAt: Date) => {
+    if (!user) return;
+    try {
+      await supabase.from('lead_import_runs' as any).insert({
+        user_id: user.id,
+        started_at: startedAt.toISOString(),
+        completed_at: new Date().toISOString(),
+        total_rows: totalRows,
+        success_count: successCount,
+        error_count: errorCount,
+        errors: errors.slice(0, 50), // Cap at 50 error messages
+        status,
+      } as any);
+    } catch (err) {
+      console.error('Failed to log import run:', err);
+    }
+  };
+
   const bulkImportLeads = async (leadsData: Partial<Lead>[], onProgress?: (current: number, total: number, success: number) => boolean | void) => {
     if (!user) return { success: 0, errors: [], duration: 0 };
 
     const startTime = Date.now();
+    const startedAt = new Date();
     const BACKEND_THRESHOLD = 500;
 
     // For large imports, use the backend edge function
@@ -337,6 +356,8 @@ export function useLeads() {
       }
 
       const duration = Math.round((Date.now() - startTime) / 1000);
+      const status = allErrors.length > 0 ? (totalSuccess > 0 ? 'partial' : 'failed') : 'completed';
+      await logImportRun(leadsData.length, totalSuccess, allErrors.length, allErrors, status, startedAt);
 
       if (totalSuccess > 0) {
         toast({
@@ -399,6 +420,8 @@ export function useLeads() {
     }
 
     const duration = Math.round((Date.now() - startTime) / 1000);
+    const runStatus = cancelled ? 'cancelled' : errors.length > 0 ? (success > 0 ? 'partial' : 'failed') : 'completed';
+    await logImportRun(leadsData.length, success, errors.length, errors, runStatus, startedAt);
 
     if (cancelled) {
       toast({
