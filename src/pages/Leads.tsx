@@ -8,6 +8,8 @@ import { LeadFilters } from '@/components/leads/LeadFilters';
 import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadsAnalytics } from '@/components/leads/LeadsAnalytics';
 import { LeadsImportExport } from '@/components/leads/LeadsImportExport';
+import { ImportedLeadsTab } from '@/components/leads/ImportedLeadsTab';
+import { AssignmentReport } from '@/components/leads/AssignmentReport';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,7 +26,9 @@ import {
   TrendingUp,
   Users,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Upload,
+  ClipboardList
 } from 'lucide-react';
 import { LeadStatus } from '@/types/leads';
 import { supabase } from '@/integrations/supabase/client';
@@ -238,6 +242,14 @@ export default function Leads() {
                 {totalCount}
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="imported" className="gap-2 data-[state=active]:shadow-sm">
+              <Upload className="h-4 w-4" />
+              Imported Leads
+            </TabsTrigger>
+            <TabsTrigger value="assignments" className="gap-2 data-[state=active]:shadow-sm">
+              <Users className="h-4 w-4" />
+              Assignment Report
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2 data-[state=active]:shadow-sm">
               <BarChart3 className="h-4 w-4" />
               Analytics
@@ -367,6 +379,30 @@ export default function Leads() {
                     )}
                   </CardContent>
                 </Card>
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="imported" className="space-y-6">
+              <motion.div
+                key="imported"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ImportedLeadsTab teamMembers={teamMembers} />
+              </motion.div>
+            </TabsContent>
+
+            <TabsContent value="assignments" className="space-y-6">
+              <motion.div
+                key="assignments"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <AssignmentReport teamMembers={teamMembers} />
               </motion.div>
             </TabsContent>
           </AnimatePresence>

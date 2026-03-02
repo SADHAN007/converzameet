@@ -322,6 +322,7 @@ export function useLeads() {
           follow_up_date: leadData.follow_up_date || null,
           deal_value: leadData.deal_value || null,
           created_by: user.id,
+          is_imported: true,
         };
 
         const { error } = await supabase

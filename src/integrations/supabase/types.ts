@@ -341,6 +341,7 @@ export type Database = {
           email: string | null
           follow_up_date: string | null
           id: string
+          is_imported: boolean
           latitude: number | null
           lead_source: string | null
           longitude: number | null
@@ -372,6 +373,7 @@ export type Database = {
           email?: string | null
           follow_up_date?: string | null
           id?: string
+          is_imported?: boolean
           latitude?: number | null
           lead_source?: string | null
           longitude?: number | null
@@ -403,6 +405,7 @@ export type Database = {
           email?: string | null
           follow_up_date?: string | null
           id?: string
+          is_imported?: boolean
           latitude?: number | null
           lead_source?: string | null
           longitude?: number | null
