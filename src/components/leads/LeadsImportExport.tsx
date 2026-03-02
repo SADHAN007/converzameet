@@ -56,6 +56,7 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
   const [previewData, setPreviewData] = useState<Partial<Lead>[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cancelledRef = useRef(false);
+  const importStartTimeRef = useRef<number>(0);
 
   const parseCSV = (csvText: string): Partial<Lead>[] => {
     const lines = csvText.split('\n').filter(line => line.trim());
@@ -181,6 +182,7 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
 
   const [importCurrent, setImportCurrent] = useState(0);
   const [importSuccessCount, setImportSuccessCount] = useState(0);
+  const [estimatedTimeLeft, setEstimatedTimeLeft] = useState<string>('');
 
   const handleImport = async () => {
     if (previewData.length === 0) return;
@@ -189,13 +191,31 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
     setImportProgress(0);
     setImportCurrent(0);
     setImportSuccessCount(0);
+    setEstimatedTimeLeft('');
     cancelledRef.current = false;
+    importStartTimeRef.current = Date.now();
 
     const result = await onImport(previewData, (current, total, success) => {
       if (cancelledRef.current) return true;
       setImportCurrent(current);
       setImportSuccessCount(success);
-      setImportProgress(Math.round((current / total) * 100));
+      const pct = Math.round((current / total) * 100);
+      setImportProgress(pct);
+
+      const elapsed = (Date.now() - importStartTimeRef.current) / 1000;
+      if (current > 0 && current < total) {
+        const rate = current / elapsed;
+        const remaining = (total - current) / rate;
+        if (remaining < 60) {
+          setEstimatedTimeLeft(`~${Math.ceil(remaining)}s remaining`);
+        } else {
+          const mins = Math.floor(remaining / 60);
+          const secs = Math.ceil(remaining % 60);
+          setEstimatedTimeLeft(`~${mins}m ${secs}s remaining`);
+        }
+      } else {
+        setEstimatedTimeLeft('');
+      }
     });
     
     if (!cancelledRef.current) {
@@ -381,7 +401,7 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
                 <Progress value={importProgress} className="h-2.5" />
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{importSuccessCount} imported successfully</span>
-                  <span>{importProgress}%</span>
+                  <span>{estimatedTimeLeft || `${importProgress}%`}</span>
                 </div>
                 <Button
                   variant="destructive"
