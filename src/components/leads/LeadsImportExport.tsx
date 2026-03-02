@@ -26,10 +26,15 @@ interface LeadsImportExportProps {
 const CSV_HEADERS = [
   'company_name',
   'contact_number',
+  'email',
+  'address',
+  'city',
+  'pin',
+  'state',
+  'website',
+  'sectors',
   'poc_name',
   'poc_number',
-  'address',
-  'website',
   'requirements',
   'other_service',
   'lead_source',
@@ -39,9 +44,9 @@ const CSV_HEADERS = [
   'deal_value',
 ];
 
-const SAMPLE_CSV = `company_name,contact_number,poc_name,poc_number,address,website,requirements,other_service,lead_source,status,remarks,follow_up_date,deal_value
-Acme Corp,9876543210,John Doe,9876543211,123 Main St,https://acme.com,"Website Development,Mobile App Development",,Referral,new_lead,Interested in web services,2024-02-15,
-Tech Solutions,8765432109,,,456 Tech Park,,,Custom CRM,LinkedIn,contacted,Follow up next week,,50000`;
+const SAMPLE_CSV = `company_name,contact_number,email,address,city,pin,state,website,sectors,poc_name,poc_number,requirements,other_service,lead_source,status,remarks,follow_up_date,deal_value
+Acme Corp,9876543210,info@acme.com,123 Main St,Mumbai,400001,Maharashtra,https://acme.com,"IT & Software,Healthcare",John Doe,9876543211,"Website Development,Mobile App Development",,Referral,new_lead,Interested in web services,2024-02-15,
+Tech Solutions,8765432109,contact@tech.com,456 Tech Park,Bangalore,560001,Karnataka,,"Retail & E-commerce",,,"SEO Services",Custom CRM,LinkedIn,contacted,Follow up next week,,50000`;
 
 export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -73,6 +78,9 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
           case 'contact_number':
             lead.contact_number = value;
             break;
+          case 'email':
+            lead.email = value;
+            break;
           case 'poc_name':
             lead.poc_name = value;
             break;
@@ -82,8 +90,20 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
           case 'address':
             lead.address = value;
             break;
+          case 'city':
+            lead.city = value;
+            break;
+          case 'pin':
+            lead.pin = value;
+            break;
+          case 'state':
+            lead.state = value;
+            break;
           case 'website':
             lead.website = value;
+            break;
+          case 'sectors':
+            lead.sectors = value.split(',').map(s => s.trim()).filter(Boolean);
             break;
           case 'requirements':
             lead.requirements = value.split(',').map(r => r.trim()).filter(Boolean);
@@ -177,10 +197,15 @@ export function LeadsImportExport({ leads, onImport }: LeadsImportExportProps) {
       ...leads.map(lead => [
         escapeCSV(lead.company_name),
         escapeCSV(lead.contact_number),
+        escapeCSV(lead.email || ''),
+        escapeCSV(lead.address || ''),
+        escapeCSV(lead.city || ''),
+        escapeCSV(lead.pin || ''),
+        escapeCSV(lead.state || ''),
+        escapeCSV(lead.website || ''),
+        escapeCSV(lead.sectors?.join(', ') || ''),
         escapeCSV(lead.poc_name || ''),
         escapeCSV(lead.poc_number || ''),
-        escapeCSV(lead.address || ''),
-        escapeCSV(lead.website || ''),
         escapeCSV(lead.requirements?.join(', ') || ''),
         escapeCSV(lead.other_service || ''),
         escapeCSV(lead.lead_source || ''),

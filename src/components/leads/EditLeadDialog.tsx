@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Lead, LeadStatus, LEAD_STATUS_OPTIONS, SERVICE_OPTIONS } from '@/types/leads';
+import { Lead, LeadStatus, LEAD_STATUS_OPTIONS, SERVICE_OPTIONS, SECTOR_OPTIONS } from '@/types/leads';
 import { Pencil, Save, X } from 'lucide-react';
 
 interface EditLeadDialogProps {
@@ -21,11 +21,16 @@ export function EditLeadDialog({ open, onOpenChange, lead, onSave }: EditLeadDia
   const [formData, setFormData] = useState({
     company_name: '',
     contact_number: '',
+    email: '',
     poc_name: '',
     poc_number: '',
     address: '',
+    city: '',
+    pin: '',
+    state: '',
     website: '',
     requirements: [] as string[],
+    sectors: [] as string[],
     other_service: '',
     lead_source: '',
     status: 'new_lead' as LeadStatus,
@@ -38,11 +43,16 @@ export function EditLeadDialog({ open, onOpenChange, lead, onSave }: EditLeadDia
       setFormData({
         company_name: lead.company_name || '',
         contact_number: lead.contact_number || '',
+        email: lead.email || '',
         poc_name: lead.poc_name || '',
         poc_number: lead.poc_number || '',
         address: lead.address || '',
+        city: lead.city || '',
+        pin: lead.pin || '',
+        state: lead.state || '',
         website: lead.website || '',
         requirements: lead.requirements || [],
+        sectors: lead.sectors || [],
         other_service: lead.other_service || '',
         lead_source: lead.lead_source || '',
         status: lead.status,
@@ -61,6 +71,15 @@ export function EditLeadDialog({ open, onOpenChange, lead, onSave }: EditLeadDia
     }));
   };
 
+  const handleSectorToggle = (sector: string) => {
+    setFormData(prev => ({
+      ...prev,
+      sectors: prev.sectors.includes(sector)
+        ? prev.sectors.filter(s => s !== sector)
+        : [...prev.sectors, sector],
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -68,11 +87,16 @@ export function EditLeadDialog({ open, onOpenChange, lead, onSave }: EditLeadDia
     const updates: Partial<Lead> = {
       company_name: formData.company_name,
       contact_number: formData.contact_number,
+      email: formData.email || null,
       poc_name: formData.poc_name || null,
       poc_number: formData.poc_number || null,
       address: formData.address || null,
+      city: formData.city || null,
+      pin: formData.pin || null,
+      state: formData.state || null,
       website: formData.website || null,
       requirements: formData.requirements,
+      sectors: formData.sectors.length > 0 ? formData.sectors : null,
       other_service: formData.other_service || null,
       lead_source: formData.lead_source || null,
       status: formData.status,
@@ -113,7 +137,17 @@ export function EditLeadDialog({ open, onOpenChange, lead, onSave }: EditLeadDia
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="contact_number">Contact Number *</Label>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="company@example.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_number">Mobile No *</Label>
                 <Input
                   id="contact_number"
                   value={formData.contact_number}
@@ -121,11 +155,8 @@ export function EditLeadDialog({ open, onOpenChange, lead, onSave }: EditLeadDia
                   required
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="website">Website</Label>
+                <Label htmlFor="website">WebLink</Label>
                 <Input
                   id="website"
                   type="url"
@@ -144,16 +175,48 @@ export function EditLeadDialog({ open, onOpenChange, lead, onSave }: EditLeadDia
                 />
               </div>
             </div>
+          </div>
 
+          {/* Address */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground">Address</h3>
             <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Textarea
+              <Label htmlFor="address">Street Address</Label>
+              <Input
                 id="address"
-                placeholder="Full address"
+                placeholder="Street address"
                 value={formData.address}
                 onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                rows={2}
               />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  placeholder="City"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">State</Label>
+                <Input
+                  id="state"
+                  placeholder="State"
+                  value={formData.state}
+                  onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pin">PIN</Label>
+                <Input
+                  id="pin"
+                  placeholder="PIN code"
+                  value={formData.pin}
+                  onChange={(e) => setFormData(prev => ({ ...prev, pin: e.target.value }))}
+                />
+              </div>
             </div>
           </div>
 
@@ -177,6 +240,25 @@ export function EditLeadDialog({ open, onOpenChange, lead, onSave }: EditLeadDia
                   onChange={(e) => setFormData(prev => ({ ...prev, poc_number: e.target.value }))}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Sectors */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground">Sectors</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {SECTOR_OPTIONS.map((sector) => (
+                <div key={sector} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`edit-sector-${sector}`}
+                    checked={formData.sectors.includes(sector)}
+                    onCheckedChange={() => handleSectorToggle(sector)}
+                  />
+                  <Label htmlFor={`edit-sector-${sector}`} className="text-sm cursor-pointer">
+                    {sector}
+                  </Label>
+                </div>
+              ))}
             </div>
           </div>
 
