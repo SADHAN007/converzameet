@@ -312,8 +312,8 @@ export function useLeads() {
     if (leadsData.length >= BACKEND_THRESHOLD) {
       onProgress?.(0, leadsData.length, 0);
       
-      // Send data in chunks to the edge function to avoid request size limits
-      const CHUNK_SIZE = 10000;
+      // Send data in chunks to the edge function to avoid timeout
+      const CHUNK_SIZE = 2000;
       let totalSuccess = 0;
       const allErrors: string[] = [];
 
