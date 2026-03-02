@@ -300,46 +300,48 @@ export function useLeads() {
     const errors: string[] = [];
     let success = 0;
     let cancelled = false;
+    const BATCH_SIZE = 50;
 
-    for (let i = 0; i < leadsData.length; i++) {
-      const shouldCancel = onProgress?.(i + 1, leadsData.length, success);
+    const allInsertData = leadsData.map((leadData, i) => ({
+      company_name: leadData.company_name || `Import ${i + 1}`,
+      contact_number: leadData.contact_number || '-',
+      email: leadData.email || null,
+      poc_name: leadData.poc_name || null,
+      poc_number: leadData.poc_number || null,
+      address: leadData.address || null,
+      city: leadData.city || null,
+      pin: leadData.pin || null,
+      state: leadData.state || null,
+      website: leadData.website || null,
+      requirements: leadData.requirements || [],
+      sectors: leadData.sectors || null,
+      other_service: leadData.other_service || null,
+      lead_source: leadData.lead_source || null,
+      status: leadData.status || 'new_lead',
+      remarks: leadData.remarks || null,
+      follow_up_date: leadData.follow_up_date || null,
+      deal_value: leadData.deal_value || null,
+      created_by: user.id,
+      is_imported: true,
+    }));
+
+    for (let i = 0; i < allInsertData.length; i += BATCH_SIZE) {
+      const shouldCancel = onProgress?.(Math.min(i + BATCH_SIZE, allInsertData.length), allInsertData.length, success);
       if (shouldCancel) {
         cancelled = true;
         break;
       }
-      const leadData = leadsData[i];
-      try {
-        const insertData = {
-          company_name: leadData.company_name || `Import ${i + 1}`,
-          contact_number: leadData.contact_number || '-',
-          email: leadData.email || null,
-          poc_name: leadData.poc_name || null,
-          poc_number: leadData.poc_number || null,
-          address: leadData.address || null,
-          city: leadData.city || null,
-          pin: leadData.pin || null,
-          state: leadData.state || null,
-          website: leadData.website || null,
-          requirements: leadData.requirements || [],
-          sectors: leadData.sectors || null,
-          other_service: leadData.other_service || null,
-          lead_source: leadData.lead_source || null,
-          status: leadData.status || 'new_lead',
-          remarks: leadData.remarks || null,
-          follow_up_date: leadData.follow_up_date || null,
-          deal_value: leadData.deal_value || null,
-          created_by: user.id,
-          is_imported: true,
-        };
 
+      const batch = allInsertData.slice(i, i + BATCH_SIZE);
+      try {
         const { error } = await supabase
           .from('leads')
-          .insert(insertData as any);
+          .insert(batch as any[]);
 
         if (error) throw error;
-        success++;
+        success += batch.length;
       } catch (error: any) {
-        errors.push(`Row ${i + 1}: ${error.message}`);
+        errors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1} (rows ${i + 1}-${i + batch.length}): ${error.message}`);
       }
     }
 
