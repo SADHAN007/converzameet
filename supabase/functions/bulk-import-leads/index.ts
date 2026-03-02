@@ -45,7 +45,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    const BATCH_SIZE = 500
+    console.log(`Processing ${leads.length} leads for user ${user.id}`)
+
+    const BATCH_SIZE = 200
     let success = 0
     const errors: string[] = []
 
@@ -80,15 +82,19 @@ Deno.serve(async (req) => {
         if (error) throw error
         success += batch.length
       } catch (err: any) {
+        console.error(`Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`, err.message)
         errors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1} (rows ${i + 1}-${i + batch.length}): ${err.message}`)
       }
     }
+
+    console.log(`Done: ${success}/${leads.length} imported, ${errors.length} errors`)
 
     return new Response(
       JSON.stringify({ success, errors, total: leads.length }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err: any) {
+    console.error('Import error:', err.message)
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
