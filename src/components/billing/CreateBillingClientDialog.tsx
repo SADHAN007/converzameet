@@ -47,11 +47,13 @@ export default function CreateBillingClientDialog({ children, onCreated, open: c
   useEffect(() => {
     if (!open) return;
     const fetchData = async () => {
-      const [profilesRes, projectsRes] = await Promise.all([
+      const [profilesRes, projectsRes, existingClientsRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, email').order('full_name'),
         supabase.from('projects').select('id, name').order('name'),
+        supabase.from('billing_clients').select('profile_id'),
       ]);
-      setClientProfiles(profilesRes.data || []);
+      const existingProfileIds = new Set((existingClientsRes.data || []).map(c => c.profile_id));
+      setClientProfiles((profilesRes.data || []).filter(p => !existingProfileIds.has(p.id)));
       setProjects(projectsRes.data || []);
     };
     fetchData();
