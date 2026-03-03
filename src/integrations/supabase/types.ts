@@ -14,6 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
+      billing_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string
+          entity_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      billing_clients: {
+        Row: {
+          billing_address: string | null
+          billing_city: string | null
+          billing_email: string | null
+          billing_phone: string | null
+          billing_state: string | null
+          billing_zip: string | null
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          gst_number: string | null
+          id: string
+          is_active: boolean
+          notes: string | null
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          billing_address?: string | null
+          billing_city?: string | null
+          billing_email?: string | null
+          billing_phone?: string | null
+          billing_state?: string | null
+          billing_zip?: string | null
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          gst_number?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          billing_address?: string | null
+          billing_city?: string | null
+          billing_email?: string | null
+          billing_phone?: string | null
+          billing_state?: string | null
+          billing_zip?: string | null
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          gst_number?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       call_requests: {
         Row: {
           caller_id: string
@@ -152,6 +236,133 @@ export type Database = {
           },
         ]
       }
+      estimate_line_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount: number
+          estimate_id: string
+          id: string
+          line_total: number
+          quantity: number
+          service_name: string
+          sort_order: number
+          tax_percent: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount?: number
+          estimate_id: string
+          id?: string
+          line_total?: number
+          quantity?: number
+          service_name: string
+          sort_order?: number
+          tax_percent?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount?: number
+          estimate_id?: string
+          id?: string
+          line_total?: number
+          quantity?: number
+          service_name?: string
+          sort_order?: number
+          tax_percent?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_line_items_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimates: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          discount_amount: number
+          estimate_date: string
+          estimate_number: string
+          expiry_date: string | null
+          grand_total: number
+          id: string
+          is_backdated: boolean
+          notes: string | null
+          rejection_reason: string | null
+          scanned_pdf_url: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          terms: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          discount_amount?: number
+          estimate_date?: string
+          estimate_number: string
+          expiry_date?: string | null
+          grand_total?: number
+          id?: string
+          is_backdated?: boolean
+          notes?: string | null
+          rejection_reason?: string | null
+          scanned_pdf_url?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          terms?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          discount_amount?: number
+          estimate_date?: string
+          estimate_number?: string
+          expiry_date?: string | null
+          grand_total?: number
+          id?: string
+          is_backdated?: boolean
+          notes?: string | null
+          rejection_reason?: string | null
+          scanned_pdf_url?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          terms?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimates_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "billing_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_messages: {
         Row: {
           content: string | null
@@ -198,6 +409,137 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "chat_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_line_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount: number
+          id: string
+          invoice_id: string
+          line_total: number
+          quantity: number
+          service_name: string
+          sort_order: number
+          tax_percent: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount?: number
+          id?: string
+          invoice_id: string
+          line_total?: number
+          quantity?: number
+          service_name: string
+          sort_order?: number
+          tax_percent?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount?: number
+          id?: string
+          invoice_id?: string
+          line_total?: number
+          quantity?: number
+          service_name?: string
+          sort_order?: number
+          tax_percent?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount_paid: number
+          client_id: string
+          created_at: string
+          created_by: string | null
+          discount_amount: number
+          due_date: string | null
+          estimate_id: string | null
+          grand_total: number
+          id: string
+          invoice_date: string
+          invoice_number: string
+          is_backdated: boolean
+          notes: string | null
+          scanned_pdf_url: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          terms: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          discount_amount?: number
+          due_date?: string | null
+          estimate_id?: string | null
+          grand_total?: number
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          is_backdated?: boolean
+          notes?: string | null
+          scanned_pdf_url?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          terms?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          discount_amount?: number
+          due_date?: string | null
+          estimate_id?: string | null
+          grand_total?: number
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          is_backdated?: boolean
+          notes?: string | null
+          scanned_pdf_url?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          terms?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "billing_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
             referencedColumns: ["id"]
           },
         ]
@@ -1001,6 +1343,85 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount_paid: number
+          client_id: string
+          created_at: string
+          created_by: string | null
+          estimate_id: string | null
+          id: string
+          invoice_id: string | null
+          payment_mode: string
+          receipt_url: string | null
+          remarks: string | null
+          status: string
+          transaction_date: string
+          updated_at: string
+          utr_reference_number: string | null
+          verified_by: string | null
+          verified_date: string | null
+        }
+        Insert: {
+          amount_paid?: number
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          estimate_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          payment_mode?: string
+          receipt_url?: string | null
+          remarks?: string | null
+          status?: string
+          transaction_date?: string
+          updated_at?: string
+          utr_reference_number?: string | null
+          verified_by?: string | null
+          verified_date?: string | null
+        }
+        Update: {
+          amount_paid?: number
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          estimate_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          payment_mode?: string
+          receipt_url?: string | null
+          remarks?: string | null
+          status?: string
+          transaction_date?: string
+          updated_at?: string
+          utr_reference_number?: string | null
+          verified_by?: string | null
+          verified_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "billing_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]

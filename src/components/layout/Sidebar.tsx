@@ -23,6 +23,7 @@ import {
   Megaphone,
   Palette,
   BarChart3,
+  Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
     { to: '/calendar', icon: Calendar, label: 'Calendar' },
     { to: '/mom', icon: FileText, label: 'Minutes' },
     { to: '/calls', icon: Phone, label: 'Calls', badge: missedCount },
+    { to: '/billing', icon: Receipt, label: 'Billing' },
   ];
 
   const isGraphicDesigner = userRole === 'graphic_designer';
