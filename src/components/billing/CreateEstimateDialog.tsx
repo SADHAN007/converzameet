@@ -112,10 +112,12 @@ export default function CreateEstimateDialog({ children }: { children: React.Rea
         </DialogContent>
       </Dialog>
 
-      {/* Inline Add Client Dialog */}
-      <CreateBillingClientDialog onCreated={() => setAddClientOpen(false)}>
-        <span className="hidden" ref={el => { if (addClientOpen && el) el.click(); }} />
-      </CreateBillingClientDialog>
+      {/* Add Client Dialog - controlled */}
+      <CreateBillingClientDialog
+        open={addClientOpen}
+        onOpenChange={setAddClientOpen}
+        onCreated={() => setAddClientOpen(false)}
+      />
     </>
   );
 }

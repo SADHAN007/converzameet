@@ -4,19 +4,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useBillingMutations } from '@/hooks/useBilling';
 import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Props {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onCreated?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export default function CreateBillingClientDialog({ children, onCreated }: Props) {
-  const [open, setOpen] = useState(false);
+export default function CreateBillingClientDialog({ children, onCreated, open: controlledOpen, onOpenChange }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (isControlled) {
+      onOpenChange?.(v);
+    } else {
+      setInternalOpen(v);
+    }
+  };
+
   const { createBillingClient } = useBillingMutations();
   const [clientProfiles, setClientProfiles] = useState<{ id: string; full_name: string | null; email: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
@@ -74,7 +85,6 @@ export default function CreateBillingClientDialog({ children, onCreated }: Props
       notes: notes || undefined,
     });
 
-    // Get the newly created billing client ID
     if (selectedProjects.length > 0) {
       const { data: bc } = await supabase
         .from('billing_clients')
@@ -109,82 +119,92 @@ export default function CreateBillingClientDialog({ children, onCreated }: Props
     setProfileSearch('');
   };
 
+  const dialogContent = (
+    <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogHeader><DialogTitle>Add Billing Client</DialogTitle></DialogHeader>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>User Account *</Label>
+          <Input
+            placeholder="Search by name or email..."
+            value={profileSearch}
+            onChange={e => setProfileSearch(e.target.value)}
+            className="mb-2"
+          />
+          <ScrollArea className="h-32 border rounded-md">
+            {filteredProfiles.map(p => (
+              <button
+                key={p.id}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/10 transition-colors ${profileId === p.id ? 'bg-accent/10 font-medium' : ''}`}
+                onClick={() => setProfileId(p.id)}
+              >
+                <span>{p.full_name || p.email}</span>
+                {p.full_name && <span className="text-xs text-muted-foreground ml-2">{p.email}</span>}
+              </button>
+            ))}
+            {filteredProfiles.length === 0 && (
+              <p className="p-3 text-sm text-muted-foreground text-center">No users found</p>
+            )}
+          </ScrollArea>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2"><Label>Company Name</Label><Input value={companyName} onChange={e => setCompanyName(e.target.value)} /></div>
+          <div className="space-y-2"><Label>GST Number</Label><Input value={gstNumber} onChange={e => setGstNumber(e.target.value)} /></div>
+          <div className="space-y-2"><Label>Email</Label><Input value={billingEmail} onChange={e => setBillingEmail(e.target.value)} /></div>
+          <div className="space-y-2"><Label>Phone</Label><Input value={billingPhone} onChange={e => setBillingPhone(e.target.value)} /></div>
+        </div>
+        <div className="space-y-2"><Label>Address</Label><Input value={billingAddress} onChange={e => setBillingAddress(e.target.value)} /></div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-2"><Label>City</Label><Input value={billingCity} onChange={e => setBillingCity(e.target.value)} /></div>
+          <div className="space-y-2"><Label>State</Label><Input value={billingState} onChange={e => setBillingState(e.target.value)} /></div>
+          <div className="space-y-2"><Label>ZIP</Label><Input value={billingZip} onChange={e => setBillingZip(e.target.value)} /></div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Assign Projects</Label>
+          <ScrollArea className="h-36 border rounded-md p-2">
+            {projects.map(p => (
+              <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent/10 rounded cursor-pointer">
+                <Checkbox
+                  checked={selectedProjects.includes(p.id)}
+                  onCheckedChange={() => toggleProject(p.id)}
+                />
+                <span className="text-sm">{p.name}</span>
+              </label>
+            ))}
+            {projects.length === 0 && (
+              <p className="p-3 text-sm text-muted-foreground text-center">No projects available</p>
+            )}
+          </ScrollArea>
+          {selectedProjects.length > 0 && (
+            <p className="text-xs text-muted-foreground">{selectedProjects.length} project(s) selected</p>
+          )}
+        </div>
+
+        <div className="space-y-2"><Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={!profileId || createBillingClient.isPending}>
+            {createBillingClient.isPending ? 'Creating...' : 'Add Client'}
+          </Button>
+        </div>
+      </div>
+    </DialogContent>
+  );
+
+  if (isControlled) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        {dialogContent}
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Add Billing Client</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          {/* User selection with search */}
-          <div className="space-y-2">
-            <Label>User Account *</Label>
-            <Input
-              placeholder="Search by name or email..."
-              value={profileSearch}
-              onChange={e => setProfileSearch(e.target.value)}
-              className="mb-2"
-            />
-            <ScrollArea className="h-32 border rounded-md">
-              {filteredProfiles.map(p => (
-                <button
-                  key={p.id}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/10 transition-colors ${profileId === p.id ? 'bg-accent/10 font-medium' : ''}`}
-                  onClick={() => setProfileId(p.id)}
-                >
-                  <span>{p.full_name || p.email}</span>
-                  {p.full_name && <span className="text-xs text-muted-foreground ml-2">{p.email}</span>}
-                </button>
-              ))}
-              {filteredProfiles.length === 0 && (
-                <p className="p-3 text-sm text-muted-foreground text-center">No users found</p>
-              )}
-            </ScrollArea>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Company Name</Label><Input value={companyName} onChange={e => setCompanyName(e.target.value)} /></div>
-            <div className="space-y-2"><Label>GST Number</Label><Input value={gstNumber} onChange={e => setGstNumber(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Email</Label><Input value={billingEmail} onChange={e => setBillingEmail(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Phone</Label><Input value={billingPhone} onChange={e => setBillingPhone(e.target.value)} /></div>
-          </div>
-          <div className="space-y-2"><Label>Address</Label><Input value={billingAddress} onChange={e => setBillingAddress(e.target.value)} /></div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2"><Label>City</Label><Input value={billingCity} onChange={e => setBillingCity(e.target.value)} /></div>
-            <div className="space-y-2"><Label>State</Label><Input value={billingState} onChange={e => setBillingState(e.target.value)} /></div>
-            <div className="space-y-2"><Label>ZIP</Label><Input value={billingZip} onChange={e => setBillingZip(e.target.value)} /></div>
-          </div>
-
-          {/* Project Assignment */}
-          <div className="space-y-2">
-            <Label>Assign Projects</Label>
-            <ScrollArea className="h-36 border rounded-md p-2">
-              {projects.map(p => (
-                <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent/10 rounded cursor-pointer">
-                  <Checkbox
-                    checked={selectedProjects.includes(p.id)}
-                    onCheckedChange={() => toggleProject(p.id)}
-                  />
-                  <span className="text-sm">{p.name}</span>
-                </label>
-              ))}
-              {projects.length === 0 && (
-                <p className="p-3 text-sm text-muted-foreground text-center">No projects available</p>
-              )}
-            </ScrollArea>
-            {selectedProjects.length > 0 && (
-              <p className="text-xs text-muted-foreground">{selectedProjects.length} project(s) selected</p>
-            )}
-          </div>
-
-          <div className="space-y-2"><Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={!profileId || createBillingClient.isPending}>
-              {createBillingClient.isPending ? 'Creating...' : 'Add Client'}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
+      {dialogContent}
     </Dialog>
   );
 }
