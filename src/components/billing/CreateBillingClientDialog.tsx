@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useBillingMutations } from '@/hooks/useBilling';
 import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
 
 interface Props {
   children?: React.ReactNode;
@@ -74,7 +75,8 @@ export default function CreateBillingClientDialog({ children, onCreated, open: c
 
   const handleSubmit = async () => {
     if (!profileId) return;
-    await createBillingClient.mutateAsync({
+
+    const billingClient = await createBillingClient.mutateAsync({
       profile_id: profileId,
       company_name: companyName || undefined,
       gst_number: gstNumber || undefined,
@@ -87,17 +89,28 @@ export default function CreateBillingClientDialog({ children, onCreated, open: c
       notes: notes || undefined,
     });
 
-    if (selectedProjects.length > 0) {
-      const { data: bc } = await supabase
-        .from('billing_clients')
-        .select('id')
-        .eq('profile_id', profileId)
-        .single();
+    if (selectedProjects.length > 0 && billingClient?.id) {
+      const { data: existingLinks, error: existingLinksError } = await supabase
+        .from('billing_client_projects')
+        .select('project_id')
+        .eq('billing_client_id', billingClient.id);
 
-      if (bc) {
-        await supabase.from('billing_client_projects').insert(
-          selectedProjects.map(pid => ({ billing_client_id: bc.id, project_id: pid }))
-        );
+      if (existingLinksError) {
+        toast.error(existingLinksError.message);
+        return;
+      }
+
+      const existingProjectIds = new Set((existingLinks || []).map(link => link.project_id));
+      const linksToInsert = selectedProjects
+        .filter(projectId => !existingProjectIds.has(projectId))
+        .map(projectId => ({ billing_client_id: billingClient.id, project_id: projectId }));
+
+      if (linksToInsert.length > 0) {
+        const { error: linkInsertError } = await supabase.from('billing_client_projects').insert(linksToInsert);
+        if (linkInsertError) {
+          toast.error(linkInsertError.message);
+          return;
+        }
       }
     }
 

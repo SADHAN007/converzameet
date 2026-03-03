@@ -187,15 +187,24 @@ export function useBillingMutations() {
       billing_phone?: string;
       notes?: string;
     }) => {
-      const { error } = await supabase.from('billing_clients').insert({
-        ...data,
-        created_by: user?.id,
-      });
+      const { data: client, error } = await supabase
+        .from('billing_clients')
+        .upsert(
+          {
+            ...data,
+            created_by: user?.id,
+          },
+          { onConflict: 'profile_id' }
+        )
+        .select('id, profile_id')
+        .single();
+
       if (error) throw error;
+      return client;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['billing-clients'] });
-      toast.success('Billing client created');
+      toast.success('Billing client saved');
     },
     onError: (e: Error) => toast.error(e.message),
   });
