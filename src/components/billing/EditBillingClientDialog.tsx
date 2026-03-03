@@ -7,9 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { Upload, X, Image } from 'lucide-react';
 
 interface Props {
   client: any;
@@ -32,7 +34,8 @@ export default function EditBillingClientDialog({ client, open, onOpenChange }: 
   const [isActive, setIsActive] = useState(true);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
   useEffect(() => {
     if (!open || !client) return;
     setCompanyName(client.company_name || '');
@@ -46,6 +49,8 @@ export default function EditBillingClientDialog({ client, open, onOpenChange }: 
     setNotes(client.notes || '');
     setIsActive(client.is_active);
     setSelectedProjects((client.assigned_projects || []).map((p: any) => p.id));
+    setLogoPreview(client.logo_url || '');
+    setLogoFile(null);
 
     supabase.from('projects').select('id, name').order('name').then(({ data }) => {
       setProjects(data || []);
@@ -58,9 +63,31 @@ export default function EditBillingClientDialog({ client, open, onOpenChange }: 
     );
   };
 
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Max file size is 2MB'); return; }
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
   const handleSubmit = async () => {
     setSaving(true);
     try {
+      // Upload logo if changed
+      let logoUrl = client.logo_url || null;
+      if (logoFile) {
+        const ext = logoFile.name.split('.').pop();
+        const path = `client-logos/${client.id}.${ext}`;
+        const { error: uploadErr } = await supabase.storage.from('billing-files').upload(path, logoFile, { upsert: true });
+        if (uploadErr) toast.error('Logo upload failed');
+        else {
+          const { data: { publicUrl } } = supabase.storage.from('billing-files').getPublicUrl(path);
+          logoUrl = publicUrl;
+        }
+      }
+
       const { error } = await supabase.from('billing_clients').update({
         company_name: companyName || null,
         gst_number: gstNumber || null,
@@ -72,6 +99,7 @@ export default function EditBillingClientDialog({ client, open, onOpenChange }: 
         billing_phone: billingPhone || null,
         notes: notes || null,
         is_active: isActive,
+        logo_url: logoUrl,
       }).eq('id', client.id);
       if (error) throw error;
 
@@ -109,6 +137,34 @@ export default function EditBillingClientDialog({ client, open, onOpenChange }: 
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Edit Billing Client</DialogTitle></DialogHeader>
         <div className="space-y-4">
+          {/* Logo Upload */}
+          <div className="flex items-center gap-4 rounded-lg border p-3">
+            <Avatar className="h-16 w-16 rounded-xl border-2 border-dashed border-border">
+              <AvatarImage src={logoPreview} className="object-cover" />
+              <AvatarFallback className="rounded-xl bg-muted">
+                <Image className="h-6 w-6 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 space-y-1">
+              <Label className="text-sm font-medium">Client Logo</Label>
+              <p className="text-xs text-muted-foreground">Upload a logo (max 2MB)</p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" asChild>
+                  <label className="cursor-pointer">
+                    <Upload className="h-3 w-3" />
+                    {logoPreview ? 'Change' : 'Upload'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
+                  </label>
+                </Button>
+                {logoPreview && (
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setLogoFile(null); setLogoPreview(''); }}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="text-sm text-muted-foreground">
             {client.profiles?.full_name || client.profiles?.email}
           </div>

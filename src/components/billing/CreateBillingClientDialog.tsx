@@ -11,7 +11,8 @@ import { useBillingMutations } from '@/hooks/useBilling';
 import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { UserPlus, Building2 } from 'lucide-react';
+import { UserPlus, Building2, Upload, X, Image } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface Props {
   children?: React.ReactNode;
@@ -50,6 +51,9 @@ export default function CreateBillingClientDialog({ children, onCreated, open: c
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [profileSearch, setProfileSearch] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -113,6 +117,25 @@ export default function CreateBillingClientDialog({ children, onCreated, open: c
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Max file size is 2MB'); return; }
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const uploadLogo = async (clientId: string): Promise<string | null> => {
+    if (!logoFile) return null;
+    const ext = logoFile.name.split('.').pop();
+    const path = `client-logos/${clientId}.${ext}`;
+    const { error } = await supabase.storage.from('billing-files').upload(path, logoFile, { upsert: true });
+    if (error) { toast.error('Logo upload failed'); return null; }
+    const { data: { publicUrl } } = supabase.storage.from('billing-files').getPublicUrl(path);
+    return publicUrl;
+  };
+
   const handleSubmit = async () => {
     if (!validate()) return;
 
@@ -134,11 +157,21 @@ export default function CreateBillingClientDialog({ children, onCreated, open: c
         notes: notes || undefined,
       });
 
-      if (selectedProjects.length > 0 && billingClient?.id) {
-        const { error: linkError } = await supabase.from('billing_client_projects').insert(
-          selectedProjects.map(pid => ({ billing_client_id: billingClient.id, project_id: pid }))
-        );
-        if (linkError) toast.error(linkError.message);
+      if (billingClient?.id) {
+        // Upload logo
+        if (logoFile) {
+          const logoUrl = await uploadLogo(billingClient.id);
+          if (logoUrl) {
+            await supabase.from('billing_clients').update({ logo_url: logoUrl }).eq('id', billingClient.id);
+          }
+        }
+        // Link projects
+        if (selectedProjects.length > 0) {
+          const { error: linkError } = await supabase.from('billing_client_projects').insert(
+            selectedProjects.map(pid => ({ billing_client_id: billingClient.id, project_id: pid }))
+          );
+          if (linkError) toast.error(linkError.message);
+        }
       }
 
       setOpen(false);
@@ -168,6 +201,8 @@ export default function CreateBillingClientDialog({ children, onCreated, open: c
     setSelectedProjects([]);
     setProfileSearch('');
     setErrors({});
+    setLogoFile(null);
+    setLogoPreview('');
   };
 
   const dialogContent = (
@@ -179,6 +214,34 @@ export default function CreateBillingClientDialog({ children, onCreated, open: c
         </DialogTitle>
       </DialogHeader>
       <div className="space-y-4">
+        {/* Client Logo Upload */}
+        <div className="flex items-center gap-4 rounded-lg border p-3">
+          <Avatar className="h-16 w-16 rounded-xl border-2 border-dashed border-border">
+            <AvatarImage src={logoPreview} className="object-cover" />
+            <AvatarFallback className="rounded-xl bg-muted">
+              <Image className="h-6 w-6 text-muted-foreground" />
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 space-y-1">
+            <Label className="text-sm font-medium">Client Logo</Label>
+            <p className="text-xs text-muted-foreground">Upload a logo (max 2MB, JPG/PNG)</p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs" asChild>
+                <label className="cursor-pointer">
+                  <Upload className="h-3 w-3" />
+                  {logoFile ? 'Change' : 'Upload'}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
+                </label>
+              </Button>
+              {logoFile && (
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setLogoFile(null); setLogoPreview(''); }}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Link to user account toggle */}
         <div className="flex items-center justify-between rounded-lg border p-3">
           <div className="space-y-0.5">
