@@ -25,12 +25,8 @@ export default function CreateBillingClientDialog({ children }: { children: Reac
 
   useEffect(() => {
     if (!open) return;
-    // Fetch users with 'client' role
     const fetchClients = async () => {
-      const { data: roles } = await supabase.from('user_roles').select('user_id').eq('role', 'client');
-      if (!roles?.length) return;
-      const userIds = roles.map(r => r.user_id);
-      const { data: profiles } = await supabase.from('profiles').select('id, full_name, email').in('id', userIds);
+      const { data: profiles } = await supabase.from('profiles').select('id, full_name, email').order('full_name');
       setClientProfiles(profiles || []);
     };
     fetchClients();
