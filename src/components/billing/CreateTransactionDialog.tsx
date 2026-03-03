@@ -127,9 +127,11 @@ export default function CreateTransactionDialog({ children, preselectedClientId,
         </DialogContent>
       </Dialog>
 
-      <CreateBillingClientDialog onCreated={() => setAddClientOpen(false)}>
-        <span className="hidden" ref={el => { if (addClientOpen && el) el.click(); }} />
-      </CreateBillingClientDialog>
+      <CreateBillingClientDialog
+        open={addClientOpen}
+        onOpenChange={setAddClientOpen}
+        onCreated={() => setAddClientOpen(false)}
+      />
     </>
   );
 }
