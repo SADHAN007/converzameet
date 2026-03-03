@@ -272,6 +272,69 @@ export type Database = {
           },
         ]
       }
+      company_settings: {
+        Row: {
+          bank_account_number: string | null
+          bank_branch: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
+          company_address: string | null
+          company_city: string | null
+          company_email: string | null
+          company_name: string
+          company_phone: string | null
+          company_state: string | null
+          company_zip: string | null
+          gst_number: string | null
+          id: string
+          logo_url: string | null
+          pan_number: string | null
+          updated_at: string
+          updated_by: string | null
+          website: string | null
+        }
+        Insert: {
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          company_address?: string | null
+          company_city?: string | null
+          company_email?: string | null
+          company_name?: string
+          company_phone?: string | null
+          company_state?: string | null
+          company_zip?: string | null
+          gst_number?: string | null
+          id?: string
+          logo_url?: string | null
+          pan_number?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          website?: string | null
+        }
+        Update: {
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          company_address?: string | null
+          company_city?: string | null
+          company_email?: string | null
+          company_name?: string
+          company_phone?: string | null
+          company_state?: string | null
+          company_zip?: string | null
+          gst_number?: string | null
+          id?: string
+          logo_url?: string | null
+          pan_number?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       estimate_line_items: {
         Row: {
           created_at: string

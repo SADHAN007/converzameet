@@ -25,6 +25,7 @@ import {
   BarChart3,
   Receipt,
   Contact,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -96,6 +97,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
   const adminNav: NavItemType[] = [
     { to: '/admin/users', icon: Users, label: 'User Management' },
     { to: '/admin/create-user', icon: UserPlus, label: 'Create User' },
+    { to: '/settings/company', icon: Settings, label: 'Company Settings' },
   ];
 
   const reportsNav: NavItemType[] = [
