@@ -21,12 +21,23 @@ export function useBillingClients() {
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['billing-clients'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: billingClients, error } = await supabase
         .from('billing_clients')
-        .select('*, profiles:profile_id(full_name, email, avatar_url)')
+        .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      
+      // Fetch profile info separately
+      const profileIds = billingClients.map(bc => bc.profile_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, avatar_url')
+        .in('id', profileIds);
+      
+      return billingClients.map(bc => ({
+        ...bc,
+        profiles: profiles?.find(p => p.id === bc.profile_id) || null,
+      }));
     },
     enabled: !!user,
   });
@@ -40,12 +51,22 @@ export function useEstimates() {
   const { data: estimates = [], isLoading } = useQuery({
     queryKey: ['estimates'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: ests, error } = await supabase
         .from('estimates')
-        .select('*, billing_clients(id, company_name, profile_id, profiles:profile_id(full_name, email))')
+        .select('*, billing_clients(id, company_name, profile_id)')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      
+      const profileIds = [...new Set(ests.map(e => e.billing_clients?.profile_id).filter(Boolean))] as string[];
+      const { data: profiles } = await supabase.from('profiles').select('id, full_name, email').in('id', profileIds);
+      
+      return ests.map(e => ({
+        ...e,
+        billing_clients: e.billing_clients ? {
+          ...e.billing_clients,
+          profiles: profiles?.find(p => p.id === e.billing_clients?.profile_id) || null,
+        } : null,
+      }));
     },
     enabled: !!user,
   });
@@ -75,12 +96,22 @@ export function useInvoices() {
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: invs, error } = await supabase
         .from('invoices')
-        .select('*, billing_clients(id, company_name, profile_id, profiles:profile_id(full_name, email))')
+        .select('*, billing_clients(id, company_name, profile_id)')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      
+      const profileIds = [...new Set(invs.map(i => i.billing_clients?.profile_id).filter(Boolean))] as string[];
+      const { data: profiles } = await supabase.from('profiles').select('id, full_name, email').in('id', profileIds);
+      
+      return invs.map(i => ({
+        ...i,
+        billing_clients: i.billing_clients ? {
+          ...i.billing_clients,
+          profiles: profiles?.find(p => p.id === i.billing_clients?.profile_id) || null,
+        } : null,
+      }));
     },
     enabled: !!user,
   });
@@ -110,12 +141,22 @@ export function useTransactions() {
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['transactions'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: txns, error } = await supabase
         .from('transactions')
-        .select('*, billing_clients(id, company_name, profile_id, profiles:profile_id(full_name, email)), invoices(invoice_number, grand_total), estimates(estimate_number)')
+        .select('*, billing_clients(id, company_name, profile_id), invoices(invoice_number, grand_total), estimates(estimate_number)')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      
+      const profileIds = [...new Set(txns.map(t => t.billing_clients?.profile_id).filter(Boolean))] as string[];
+      const { data: profiles } = await supabase.from('profiles').select('id, full_name, email').in('id', profileIds);
+      
+      return txns.map(t => ({
+        ...t,
+        billing_clients: t.billing_clients ? {
+          ...t.billing_clients,
+          profiles: profiles?.find(p => p.id === t.billing_clients?.profile_id) || null,
+        } : null,
+      }));
     },
     enabled: !!user,
   });

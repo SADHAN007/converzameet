@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useBillingClients, useBillingMutations, type LineItem } from '@/hooks/useBilling';
 import LineItemsEditor from './LineItemsEditor';
+import ClientSearchSelect from './ClientSearchSelect';
+import CreateBillingClientDialog from './CreateBillingClientDialog';
 
 export default function CreateInvoiceDialog({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [addClientOpen, setAddClientOpen] = useState(false);
   const { clients } = useBillingClients();
   const { createInvoice } = useBillingMutations();
   const [clientId, setClientId] = useState('');
@@ -50,67 +52,70 @@ export default function CreateInvoiceDialog({ children }: { children: React.Reac
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create Invoice</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Client *</Label>
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
-                <SelectContent>
-                  {clients.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.company_name || (c as any).profiles?.full_name || (c as any).profiles?.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>{children}</DialogTrigger>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Invoice</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Client *</Label>
+                <ClientSearchSelect
+                  clients={clients}
+                  value={clientId}
+                  onChange={setClientId}
+                  onAddNew={() => setAddClientOpen(true)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Invoice Number (auto if empty)</Label>
+                <Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="INV-0001" />
+              </div>
+              <div className="space-y-2">
+                <Label>Invoice Date</Label>
+                <Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Due Date</Label>
+                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Invoice Number (auto if empty)</Label>
-              <Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="INV-0001" />
+
+            <div className="flex items-center gap-2">
+              <Switch checked={isBackdated} onCheckedChange={setIsBackdated} />
+              <Label>Backdated Invoice</Label>
             </div>
-            <div className="space-y-2">
-              <Label>Invoice Date</Label>
-              <Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
+
+            <LineItemsEditor items={lineItems} onChange={setLineItems} />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Terms</Label>
+                <Textarea value={terms} onChange={e => setTerms(e.target.value)} rows={3} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Due Date</Label>
-              <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={!clientId || lineItems.length === 0 || createInvoice.isPending}>
+                {createInvoice.isPending ? 'Creating...' : 'Create Invoice'}
+              </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
 
-          <div className="flex items-center gap-2">
-            <Switch checked={isBackdated} onCheckedChange={setIsBackdated} />
-            <Label>Backdated Invoice</Label>
-          </div>
-
-          <LineItemsEditor items={lineItems} onChange={setLineItems} />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} />
-            </div>
-            <div className="space-y-2">
-              <Label>Payment Terms</Label>
-              <Textarea value={terms} onChange={e => setTerms(e.target.value)} rows={3} />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={!clientId || lineItems.length === 0 || createInvoice.isPending}>
-              {createInvoice.isPending ? 'Creating...' : 'Create Invoice'}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      {/* Inline Add Client Dialog */}
+      <CreateBillingClientDialog onCreated={() => setAddClientOpen(false)}>
+        <span className="hidden" ref={el => { if (addClientOpen && el) el.click(); }} />
+      </CreateBillingClientDialog>
+    </>
   );
 }

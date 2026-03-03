@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useBillingClients, useInvoices, useBillingMutations } from '@/hooks/useBilling';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import ClientSearchSelect from './ClientSearchSelect';
+import CreateBillingClientDialog from './CreateBillingClientDialog';
 
 interface Props {
   children: React.ReactNode;
@@ -17,7 +19,8 @@ interface Props {
 
 export default function CreateTransactionDialog({ children, preselectedClientId, preselectedInvoiceId }: Props) {
   const [open, setOpen] = useState(false);
-  const { isAdmin, user } = useAuth();
+  const [addClientOpen, setAddClientOpen] = useState(false);
+  const { user } = useAuth();
   const { clients } = useBillingClients();
   const { invoices } = useInvoices();
   const { createTransaction } = useBillingMutations();
@@ -59,72 +62,74 @@ export default function CreateTransactionDialog({ children, preselectedClientId,
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Record Transaction</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Client *</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
-              <SelectContent>
-                {clients.map(c => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.company_name || (c as any).profiles?.full_name || (c as any).profiles?.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Invoice (optional)</Label>
-            <Select value={invoiceId} onValueChange={setInvoiceId}>
-              <SelectTrigger><SelectValue placeholder="Link to invoice" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                {filteredInvoices.map(i => (
-                  <SelectItem key={i.id} value={i.id}>{i.invoice_number} - ₹{Number(i.grand_total).toLocaleString()}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>{children}</DialogTrigger>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Record Transaction</DialogTitle></DialogHeader>
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Amount Paid *</Label>
-              <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" min={0} />
+              <Label>Client *</Label>
+              <ClientSearchSelect
+                clients={clients}
+                value={clientId}
+                onChange={setClientId}
+                onAddNew={() => setAddClientOpen(true)}
+              />
             </div>
             <div className="space-y-2">
-              <Label>Payment Mode</Label>
-              <Select value={paymentMode} onValueChange={setPaymentMode}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label>Invoice (optional)</Label>
+              <Select value={invoiceId} onValueChange={setInvoiceId}>
+                <SelectTrigger><SelectValue placeholder="Link to invoice" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="upi">UPI</SelectItem>
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="">None</SelectItem>
+                  {filteredInvoices.map(i => (
+                    <SelectItem key={i.id} value={i.id}>{i.invoice_number} - ₹{Number(i.grand_total).toLocaleString()}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Amount Paid *</Label>
+                <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" min={0} />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Mode</Label>
+                <Select value={paymentMode} onValueChange={setPaymentMode}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="upi">UPI</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Transaction Date</Label><Input type="date" value={transactionDate} onChange={e => setTransactionDate(e.target.value)} /></div>
+              <div className="space-y-2"><Label>UTR / Reference</Label><Input value={utr} onChange={e => setUtr(e.target.value)} /></div>
+            </div>
+            <div className="space-y-2">
+              <Label>Receipt Upload</Label>
+              <Input type="file" accept="image/*,.pdf" onChange={e => setReceiptFile(e.target.files?.[0] || null)} />
+            </div>
+            <div className="space-y-2"><Label>Remarks</Label><Textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={2} /></div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={!clientId || !amount || createTransaction.isPending}>
+                {createTransaction.isPending ? 'Recording...' : 'Record Transaction'}
+              </Button>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Transaction Date</Label><Input type="date" value={transactionDate} onChange={e => setTransactionDate(e.target.value)} /></div>
-            <div className="space-y-2"><Label>UTR / Reference</Label><Input value={utr} onChange={e => setUtr(e.target.value)} /></div>
-          </div>
-          <div className="space-y-2">
-            <Label>Receipt Upload</Label>
-            <Input type="file" accept="image/*,.pdf" onChange={e => setReceiptFile(e.target.files?.[0] || null)} />
-          </div>
-          <div className="space-y-2"><Label>Remarks</Label><Textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={2} /></div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={!clientId || !amount || createTransaction.isPending}>
-              {createTransaction.isPending ? 'Recording...' : 'Record Transaction'}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <CreateBillingClientDialog onCreated={() => setAddClientOpen(false)}>
+        <span className="hidden" ref={el => { if (addClientOpen && el) el.click(); }} />
+      </CreateBillingClientDialog>
+    </>
   );
 }

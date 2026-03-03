@@ -5,13 +5,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useBillingMutations } from '@/hooks/useBilling';
 import { supabase } from '@/integrations/supabase/client';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
-export default function CreateBillingClientDialog({ children }: { children: React.ReactNode }) {
+interface Props {
+  children: React.ReactNode;
+  onCreated?: () => void;
+}
+
+export default function CreateBillingClientDialog({ children, onCreated }: Props) {
   const [open, setOpen] = useState(false);
   const { createBillingClient } = useBillingMutations();
   const [clientProfiles, setClientProfiles] = useState<{ id: string; full_name: string | null; email: string }[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [profileId, setProfileId] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [gstNumber, setGstNumber] = useState('');
@@ -22,15 +30,34 @@ export default function CreateBillingClientDialog({ children }: { children: Reac
   const [billingEmail, setBillingEmail] = useState('');
   const [billingPhone, setBillingPhone] = useState('');
   const [notes, setNotes] = useState('');
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [profileSearch, setProfileSearch] = useState('');
 
   useEffect(() => {
     if (!open) return;
-    const fetchClients = async () => {
-      const { data: profiles } = await supabase.from('profiles').select('id, full_name, email').order('full_name');
-      setClientProfiles(profiles || []);
+    const fetchData = async () => {
+      const [profilesRes, projectsRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, email').order('full_name'),
+        supabase.from('projects').select('id, name').order('name'),
+      ]);
+      setClientProfiles(profilesRes.data || []);
+      setProjects(projectsRes.data || []);
     };
-    fetchClients();
+    fetchData();
   }, [open]);
+
+  const filteredProfiles = profileSearch
+    ? clientProfiles.filter(p =>
+        (p.full_name || '').toLowerCase().includes(profileSearch.toLowerCase()) ||
+        p.email.toLowerCase().includes(profileSearch.toLowerCase())
+      )
+    : clientProfiles;
+
+  const toggleProject = (projectId: string) => {
+    setSelectedProjects(prev =>
+      prev.includes(projectId) ? prev.filter(id => id !== projectId) : [...prev, projectId]
+    );
+  };
 
   const handleSubmit = async () => {
     if (!profileId) return;
@@ -46,26 +73,74 @@ export default function CreateBillingClientDialog({ children }: { children: Reac
       billing_phone: billingPhone || undefined,
       notes: notes || undefined,
     });
+
+    // Get the newly created billing client ID
+    if (selectedProjects.length > 0) {
+      const { data: bc } = await supabase
+        .from('billing_clients')
+        .select('id')
+        .eq('profile_id', profileId)
+        .single();
+
+      if (bc) {
+        await supabase.from('billing_client_projects').insert(
+          selectedProjects.map(pid => ({ billing_client_id: bc.id, project_id: pid }))
+        );
+      }
+    }
+
     setOpen(false);
+    resetForm();
+    onCreated?.();
+  };
+
+  const resetForm = () => {
+    setProfileId('');
+    setCompanyName('');
+    setGstNumber('');
+    setBillingAddress('');
+    setBillingCity('');
+    setBillingState('');
+    setBillingZip('');
+    setBillingEmail('');
+    setBillingPhone('');
+    setNotes('');
+    setSelectedProjects([]);
+    setProfileSearch('');
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Add Billing Client</DialogTitle></DialogHeader>
         <div className="space-y-4">
+          {/* User selection with search */}
           <div className="space-y-2">
             <Label>User Account *</Label>
-            <Select value={profileId} onValueChange={setProfileId}>
-              <SelectTrigger><SelectValue placeholder="Select a client user" /></SelectTrigger>
-              <SelectContent>
-                {clientProfiles.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.full_name || p.email}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              placeholder="Search by name or email..."
+              value={profileSearch}
+              onChange={e => setProfileSearch(e.target.value)}
+              className="mb-2"
+            />
+            <ScrollArea className="h-32 border rounded-md">
+              {filteredProfiles.map(p => (
+                <button
+                  key={p.id}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/10 transition-colors ${profileId === p.id ? 'bg-accent/10 font-medium' : ''}`}
+                  onClick={() => setProfileId(p.id)}
+                >
+                  <span>{p.full_name || p.email}</span>
+                  {p.full_name && <span className="text-xs text-muted-foreground ml-2">{p.email}</span>}
+                </button>
+              ))}
+              {filteredProfiles.length === 0 && (
+                <p className="p-3 text-sm text-muted-foreground text-center">No users found</p>
+              )}
+            </ScrollArea>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Company Name</Label><Input value={companyName} onChange={e => setCompanyName(e.target.value)} /></div>
             <div className="space-y-2"><Label>GST Number</Label><Input value={gstNumber} onChange={e => setGstNumber(e.target.value)} /></div>
@@ -78,6 +153,29 @@ export default function CreateBillingClientDialog({ children }: { children: Reac
             <div className="space-y-2"><Label>State</Label><Input value={billingState} onChange={e => setBillingState(e.target.value)} /></div>
             <div className="space-y-2"><Label>ZIP</Label><Input value={billingZip} onChange={e => setBillingZip(e.target.value)} /></div>
           </div>
+
+          {/* Project Assignment */}
+          <div className="space-y-2">
+            <Label>Assign Projects</Label>
+            <ScrollArea className="h-36 border rounded-md p-2">
+              {projects.map(p => (
+                <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent/10 rounded cursor-pointer">
+                  <Checkbox
+                    checked={selectedProjects.includes(p.id)}
+                    onCheckedChange={() => toggleProject(p.id)}
+                  />
+                  <span className="text-sm">{p.name}</span>
+                </label>
+              ))}
+              {projects.length === 0 && (
+                <p className="p-3 text-sm text-muted-foreground text-center">No projects available</p>
+              )}
+            </ScrollArea>
+            {selectedProjects.length > 0 && (
+              <p className="text-xs text-muted-foreground">{selectedProjects.length} project(s) selected</p>
+            )}
+          </div>
+
           <div className="space-y-2"><Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

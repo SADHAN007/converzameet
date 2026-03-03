@@ -44,6 +44,42 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_client_projects: {
+        Row: {
+          billing_client_id: string
+          created_at: string
+          id: string
+          project_id: string
+        }
+        Insert: {
+          billing_client_id: string
+          created_at?: string
+          id?: string
+          project_id: string
+        }
+        Update: {
+          billing_client_id?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_client_projects_billing_client_id_fkey"
+            columns: ["billing_client_id"]
+            isOneToOne: false
+            referencedRelation: "billing_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_client_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_clients: {
         Row: {
           billing_address: string | null
