@@ -25,6 +25,7 @@ import DigitalMarketing from "./pages/DigitalMarketing";
 import GraphicsDesign from "./pages/GraphicsDesign";
 import Reports from "./pages/Reports";
 import Billing from "./pages/Billing";
+import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => (
                 <Route path="/graphics-design" element={<GraphicsDesign />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/billing" element={<Billing />} />
+                <Route path="/clients" element={<Clients />} />
                 <Route path="/profile" element={<Profile />} />
               </Route>
               <Route path="*" element={<NotFound />} />
