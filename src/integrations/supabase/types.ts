@@ -96,6 +96,7 @@ export type Database = {
           gst_number: string | null
           id: string
           is_active: boolean
+          logo_url: string | null
           notes: string | null
           pan_number: string | null
           profile_id: string | null
@@ -117,6 +118,7 @@ export type Database = {
           gst_number?: string | null
           id?: string
           is_active?: boolean
+          logo_url?: string | null
           notes?: string | null
           pan_number?: string | null
           profile_id?: string | null
@@ -138,6 +140,7 @@ export type Database = {
           gst_number?: string | null
           id?: string
           is_active?: boolean
+          logo_url?: string | null
           notes?: string | null
           pan_number?: string | null
           profile_id?: string | null
