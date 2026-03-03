@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FileText, Receipt, Plus, TrendingUp, Users, CreditCard, Download, Eye } from 'lucide-react';
+import { FileText, Receipt, Plus, TrendingUp, Users, CreditCard, Download, Eye, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEstimates, useInvoices, useTransactions, useBillingClients, useBillingMutations, useEstimateLineItems, useInvoiceLineItems } from '@/hooks/useBilling';
 import BillingStatusBadge from '@/components/billing/BillingStatusBadge';
 import CreateEstimateDialog from '@/components/billing/CreateEstimateDialog';
+import EditEstimateDialog from '@/components/billing/EditEstimateDialog';
 import CreateInvoiceDialog from '@/components/billing/CreateInvoiceDialog';
 import CreateTransactionDialog from '@/components/billing/CreateTransactionDialog';
 import CreateBillingClientDialog from '@/components/billing/CreateBillingClientDialog';
@@ -419,6 +420,11 @@ export default function BillingPage() {
                           <EstimateDetailDialog estimate={est}>
                             <Button variant="ghost" size="sm" className="gap-1"><Eye className="h-3.5 w-3.5" /> View</Button>
                           </EstimateDetailDialog>
+                          {isAdmin && ['draft', 'sent'].includes(est.status) && (
+                            <EditEstimateDialog estimate={est}>
+                              <Button variant="ghost" size="sm" className="gap-1"><Pencil className="h-3.5 w-3.5" /> Edit</Button>
+                            </EditEstimateDialog>
+                          )}
                           <Button variant="ghost" size="sm" className="gap-1" onClick={() => downloadEstimatePdf(est.id).catch(() => toast.error('Failed to generate PDF'))}>
                             <Download className="h-3.5 w-3.5" /> PDF
                           </Button>

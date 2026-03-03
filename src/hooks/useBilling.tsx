@@ -414,6 +414,58 @@ export function useBillingMutations() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateEstimate = useMutation({
+    mutationFn: async (data: {
+      id: string;
+      client_id?: string;
+      estimate_number?: string;
+      estimate_date?: string;
+      expiry_date?: string | null;
+      notes?: string | null;
+      terms?: string | null;
+      is_backdated?: boolean;
+      line_items: LineItem[];
+    }) => {
+      const { id, line_items, ...estimateData } = data;
+      const subtotal = line_items.reduce((s, i) => s + (i.quantity * i.unit_price - i.discount), 0);
+      const tax_amount = line_items.reduce((s, i) => s + ((i.quantity * i.unit_price - i.discount) * i.tax_percent / 100), 0);
+      const discount_amount = line_items.reduce((s, i) => s + i.discount, 0);
+      const grand_total = subtotal + tax_amount;
+
+      const { error } = await supabase
+        .from('estimates')
+        .update({ ...estimateData, subtotal, tax_amount, discount_amount, grand_total })
+        .eq('id', id);
+      if (error) throw error;
+
+      // Delete existing line items and re-insert
+      await supabase.from('estimate_line_items').delete().eq('estimate_id', id);
+
+      if (line_items.length > 0) {
+        const { error: liError } = await supabase.from('estimate_line_items').insert(
+          line_items.map((li, idx) => ({
+            estimate_id: id,
+            service_name: li.service_name,
+            description: li.description,
+            quantity: li.quantity,
+            unit_price: li.unit_price,
+            tax_percent: li.tax_percent,
+            discount: li.discount,
+            line_total: li.quantity * li.unit_price - li.discount + (li.quantity * li.unit_price - li.discount) * li.tax_percent / 100,
+            sort_order: idx,
+          }))
+        );
+        if (liError) throw liError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['estimates'] });
+      queryClient.invalidateQueries({ queryKey: ['estimate-line-items'] });
+      toast.success('Estimate updated');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const convertEstimateToInvoice = useMutation({
     mutationFn: async (estimateId: string) => {
       // Get estimate + line items
@@ -480,6 +532,7 @@ export function useBillingMutations() {
   return {
     createBillingClient,
     createEstimate,
+    updateEstimate,
     updateEstimateStatus,
     createInvoice,
     updateInvoiceStatus,
