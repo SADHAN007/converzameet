@@ -28,7 +28,7 @@ function EstimateDetailDialog({ estimate, children }: { estimate: any; children:
   const [open, setOpen] = useState(false);
   const { data: lineItems = [] } = useEstimateLineItems(open ? estimate.id : undefined);
 
-  const clientName = estimate.billing_clients?.company_name || estimate.billing_clients?.profiles?.full_name || '-';
+  const clientName = estimate.billing_clients?.company_name || estimate.billing_clients?.client_name || estimate.billing_clients?.profiles?.full_name || '-';
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -47,8 +47,8 @@ function EstimateDetailDialog({ estimate, children }: { estimate: any; children:
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Client</p>
               <p className="font-semibold">{clientName}</p>
-              {estimate.billing_clients?.profiles?.email && (
-                <p className="text-sm text-muted-foreground">{estimate.billing_clients.profiles.email}</p>
+              {(estimate.billing_clients?.profiles?.email || estimate.billing_clients?.billing_email) && (
+                <p className="text-sm text-muted-foreground">{estimate.billing_clients?.profiles?.email || estimate.billing_clients?.billing_email}</p>
               )}
             </div>
             <div className="space-y-2 text-right">
@@ -156,7 +156,7 @@ function InvoiceDetailDialog({ invoice, children }: { invoice: any; children: Re
   const [open, setOpen] = useState(false);
   const { data: lineItems = [] } = useInvoiceLineItems(open ? invoice.id : undefined);
 
-  const clientName = invoice.billing_clients?.company_name || invoice.billing_clients?.profiles?.full_name || '-';
+  const clientName = invoice.billing_clients?.company_name || invoice.billing_clients?.client_name || invoice.billing_clients?.profiles?.full_name || '-';
   const balance = Number(invoice.grand_total) - Number(invoice.amount_paid);
 
   return (
@@ -176,8 +176,8 @@ function InvoiceDetailDialog({ invoice, children }: { invoice: any; children: Re
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Client</p>
               <p className="font-semibold">{clientName}</p>
-              {invoice.billing_clients?.profiles?.email && (
-                <p className="text-sm text-muted-foreground">{invoice.billing_clients.profiles.email}</p>
+              {(invoice.billing_clients?.profiles?.email || invoice.billing_clients?.billing_email) && (
+                <p className="text-sm text-muted-foreground">{invoice.billing_clients?.profiles?.email || invoice.billing_clients?.billing_email}</p>
               )}
             </div>
             <div className="space-y-2 text-right">
@@ -411,7 +411,7 @@ export default function BillingPage() {
                   {estimates.map(est => (
                     <TableRow key={est.id}>
                       <TableCell className="font-medium">{est.estimate_number}</TableCell>
-                      <TableCell>{est.billing_clients?.company_name || (est.billing_clients as any)?.profiles?.full_name || '-'}</TableCell>
+                      <TableCell>{est.billing_clients?.company_name || est.billing_clients?.client_name || (est.billing_clients as any)?.profiles?.full_name || '-'}</TableCell>
                       <TableCell>{format(new Date(est.estimate_date), 'MMM dd, yyyy')}</TableCell>
                       <TableCell className="font-medium">₹{Number(est.grand_total).toLocaleString()}</TableCell>
                       <TableCell><BillingStatusBadge status={est.status} /></TableCell>
@@ -482,7 +482,7 @@ export default function BillingPage() {
                   {invoices.map(inv => (
                     <TableRow key={inv.id}>
                       <TableCell className="font-medium">{inv.invoice_number}</TableCell>
-                      <TableCell>{inv.billing_clients?.company_name || (inv.billing_clients as any)?.profiles?.full_name || '-'}</TableCell>
+                      <TableCell>{inv.billing_clients?.company_name || inv.billing_clients?.client_name || (inv.billing_clients as any)?.profiles?.full_name || '-'}</TableCell>
                       <TableCell>{format(new Date(inv.invoice_date), 'MMM dd, yyyy')}</TableCell>
                       <TableCell>{inv.due_date ? format(new Date(inv.due_date), 'MMM dd, yyyy') : '-'}</TableCell>
                       <TableCell className="font-medium">₹{Number(inv.grand_total).toLocaleString()}</TableCell>

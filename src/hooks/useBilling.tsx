@@ -28,10 +28,14 @@ export function useBillingClients() {
       if (error) throw error;
       
       const clientIds = billingClients.map(bc => bc.id);
-      const profileIds = billingClients.map(bc => bc.profile_id);
+      const profileIds = billingClients
+        .map(bc => bc.profile_id)
+        .filter((id): id is string => Boolean(id));
 
       const [{ data: profiles }, { data: clientProjects }, { data: projects }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, email, avatar_url').in('id', profileIds),
+        profileIds.length
+          ? supabase.from('profiles').select('id, full_name, email, avatar_url').in('id', profileIds)
+          : Promise.resolve({ data: [] as { id: string; full_name: string | null; email: string; avatar_url: string | null }[] }),
         supabase.from('billing_client_projects').select('billing_client_id, project_id').in('billing_client_id', clientIds),
         supabase.from('projects').select('id, name'),
       ]);
@@ -59,7 +63,7 @@ export function useEstimates() {
     queryFn: async () => {
       const { data: ests, error } = await supabase
         .from('estimates')
-        .select('*, billing_clients(id, company_name, profile_id)')
+        .select('*, billing_clients(id, company_name, client_name, billing_email, profile_id)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       
@@ -104,7 +108,7 @@ export function useInvoices() {
     queryFn: async () => {
       const { data: invs, error } = await supabase
         .from('invoices')
-        .select('*, billing_clients(id, company_name, profile_id)')
+        .select('*, billing_clients(id, company_name, client_name, billing_email, profile_id)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       
@@ -149,7 +153,7 @@ export function useTransactions() {
     queryFn: async () => {
       const { data: txns, error } = await supabase
         .from('transactions')
-        .select('*, billing_clients(id, company_name, profile_id), invoices(invoice_number, grand_total), estimates(estimate_number)')
+        .select('*, billing_clients(id, company_name, client_name, billing_email, profile_id), invoices(invoice_number, grand_total), estimates(estimate_number)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       
