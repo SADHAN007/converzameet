@@ -24,6 +24,24 @@ interface ClientInfo {
   profiles?: { full_name?: string | null; email?: string | null } | null;
 }
 
+interface CompanyInfo {
+  company_name: string;
+  company_email?: string | null;
+  company_phone?: string | null;
+  company_address?: string | null;
+  company_city?: string | null;
+  company_state?: string | null;
+  company_zip?: string | null;
+  gst_number?: string | null;
+  pan_number?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  bank_ifsc?: string | null;
+  bank_branch?: string | null;
+  logo_url?: string | null;
+  website?: string | null;
+}
+
 interface PdfData {
   type: 'estimate' | 'invoice';
   number: string;
@@ -38,6 +56,7 @@ interface PdfData {
   terms?: string | null;
   client: ClientInfo;
   lineItems: LineItem[];
+  company: CompanyInfo;
 }
 
 const COLORS = {
@@ -118,7 +137,7 @@ export async function generateBillingPdf(data: PdfData) {
   if (clientPhone) { doc.text(`Phone: ${clientPhone}`, margin + 5, detailY); detailY += 4; }
   if (clientEmail) { doc.text(`Email: ${clientEmail}`, margin + 5, detailY); }
 
-  // Payment method box
+  // Company details box
   const payX = margin + contentWidth / 2 + 5;
   drawRoundedRect(doc, payX, y, contentWidth / 2 - 5, 52, 3, COLORS.lightGray);
   doc.setTextColor(...COLORS.primary);
@@ -130,10 +149,16 @@ export async function generateBillingPdf(data: PdfData) {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   let payY = y + 16;
-  doc.text('Converza Meet', payX + 5, payY); payY += 5;
-  doc.text('Email: info@converza.com', payX + 5, payY); payY += 5;
-  doc.text('Phone: +91 XXXXXXXXXX', payX + 5, payY);
-
+  doc.text(data.company.company_name, payX + 5, payY); payY += 5;
+  if (data.company.company_address) {
+    const addrParts = [data.company.company_address, [data.company.company_city, data.company.company_state, data.company.company_zip].filter(Boolean).join(', ')].filter(Boolean).join(', ');
+    const addrLines = doc.splitTextToSize(addrParts, contentWidth / 2 - 15);
+    doc.text(addrLines, payX + 5, payY); payY += addrLines.length * 4;
+  }
+  if (data.company.gst_number) { doc.text(`GST: ${data.company.gst_number}`, payX + 5, payY); payY += 4; }
+  if (data.company.company_email) { doc.text(`Email: ${data.company.company_email}`, payX + 5, payY); payY += 4; }
+  if (data.company.company_phone) { doc.text(`Phone: ${data.company.company_phone}`, payX + 5, payY); payY += 4; }
+  if (data.company.website) { doc.text(`Web: ${data.company.website}`, payX + 5, payY); }
   y += 60;
 
   // === LINE ITEMS TABLE ===
@@ -235,6 +260,26 @@ export async function generateBillingPdf(data: PdfData) {
 
   y += 50;
 
+  // === BANK DETAILS (for invoices) ===
+  const hasBankInfo = data.company.bank_name || data.company.bank_account_number;
+  if (data.type === 'invoice' && hasBankInfo) {
+    if (y > 240) { doc.addPage(); y = 20; }
+    drawRoundedRect(doc, margin, y, contentWidth / 2 - 5, 36, 3, COLORS.primaryLight);
+    doc.setTextColor(...COLORS.primary);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Bank Details', margin + 5, y + 8);
+    doc.setTextColor(...COLORS.gray);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    let bankY = y + 15;
+    if (data.company.bank_name) { doc.text(`Bank: ${data.company.bank_name}`, margin + 5, bankY); bankY += 4; }
+    if (data.company.bank_account_number) { doc.text(`A/C No: ${data.company.bank_account_number}`, margin + 5, bankY); bankY += 4; }
+    if (data.company.bank_ifsc) { doc.text(`IFSC: ${data.company.bank_ifsc}`, margin + 5, bankY); bankY += 4; }
+    if (data.company.bank_branch) { doc.text(`Branch: ${data.company.bank_branch}`, margin + 5, bankY); }
+    y += 42;
+  }
+
   // === TERMS & CONDITIONS ===
   if (y > 230) { doc.addPage(); y = 20; }
 
@@ -283,12 +328,21 @@ export async function generateBillingPdf(data: PdfData) {
   doc.save(filename);
 }
 
-export async function downloadEstimatePdf(estimateId: string) {
-  const { data: estimate, error: estError } = await supabase
-    .from('estimates')
+async function fetchCompanySettings(): Promise<CompanyInfo> {
+  const { data } = await supabase
+    .from('company_settings')
     .select('*')
-    .eq('id', estimateId)
+    .limit(1)
     .single();
+  if (data) return data as CompanyInfo;
+  return { company_name: 'Converza Meet' };
+}
+
+export async function downloadEstimatePdf(estimateId: string) {
+  const [{ data: estimate, error: estError }, companySettings] = await Promise.all([
+    supabase.from('estimates').select('*').eq('id', estimateId).single(),
+    fetchCompanySettings(),
+  ]);
   if (estError || !estimate) throw estError;
 
   const { data: lineItems } = await supabase
@@ -321,15 +375,15 @@ export async function downloadEstimatePdf(estimateId: string) {
     terms: estimate.terms,
     client: client ? { ...client, profiles: profileData } : {},
     lineItems: lineItems || [],
+    company: companySettings,
   });
 }
 
 export async function downloadInvoicePdf(invoiceId: string) {
-  const { data: invoice, error: invError } = await supabase
-    .from('invoices')
-    .select('*')
-    .eq('id', invoiceId)
-    .single();
+  const [{ data: invoice, error: invError }, companySettings] = await Promise.all([
+    supabase.from('invoices').select('*').eq('id', invoiceId).single(),
+    fetchCompanySettings(),
+  ]);
   if (invError || !invoice) throw invError;
 
   const { data: lineItems } = await supabase
@@ -364,5 +418,6 @@ export async function downloadInvoicePdf(invoiceId: string) {
     terms: invoice.terms,
     client: client ? { ...client, profiles: profileData2 } : {},
     lineItems: lineItems || [],
+    company: companySettings,
   });
 }
