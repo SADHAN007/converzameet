@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 interface Client {
   id: string;
   company_name: string | null;
+  client_name?: string | null;
+  billing_email?: string | null;
   profiles?: { full_name: string | null; email: string | null } | null;
   [key: string]: any;
 }
@@ -24,14 +26,14 @@ export default function ClientSearchSelect({ clients, value, onChange, onAddNew,
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  const getLabel = (c: Client) => c.company_name || (c.profiles as any)?.full_name || (c.profiles as any)?.email || 'Unknown';
+  const getLabel = (c: Client) => c.company_name || c.client_name || (c.profiles as any)?.full_name || (c.profiles as any)?.email || c.billing_email || 'Unknown';
 
   const filtered = useMemo(() => {
     if (!search) return clients;
     const q = search.toLowerCase();
     return clients.filter(c => {
       const label = getLabel(c).toLowerCase();
-      const email = ((c.profiles as any)?.email || '').toLowerCase();
+      const email = (((c.profiles as any)?.email || c.billing_email) || '').toLowerCase();
       return label.includes(q) || email.includes(q);
     });
   }, [clients, search]);
@@ -70,8 +72,8 @@ export default function ClientSearchSelect({ clients, value, onChange, onAddNew,
               onClick={() => { onChange(c.id); setOpen(false); setSearch(''); }}
             >
               <span>{getLabel(c)}</span>
-              {(c.profiles as any)?.email && (
-                <span className="text-xs text-muted-foreground">{(c.profiles as any).email}</span>
+              {((c.profiles as any)?.email || c.billing_email) && (
+                <span className="text-xs text-muted-foreground">{(c.profiles as any)?.email || c.billing_email}</span>
               )}
             </button>
           ))}
