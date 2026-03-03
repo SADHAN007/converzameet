@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FileText, Receipt, CreditCard, Users, Plus, ArrowUpRight, ArrowDownRight, TrendingUp } from 'lucide-react';
+import { FileText, Receipt, CreditCard, Users, Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,6 +11,7 @@ import CreateEstimateDialog from '@/components/billing/CreateEstimateDialog';
 import CreateInvoiceDialog from '@/components/billing/CreateInvoiceDialog';
 import CreateTransactionDialog from '@/components/billing/CreateTransactionDialog';
 import CreateBillingClientDialog from '@/components/billing/CreateBillingClientDialog';
+import EditBillingClientDialog from '@/components/billing/EditBillingClientDialog';
 import { useBillingMutations } from '@/hooks/useBilling';
 import { format } from 'date-fns';
 import { Navigate } from 'react-router-dom';
@@ -76,6 +77,7 @@ export default function BillingPage() {
   const { updateEstimateStatus, updateInvoiceStatus, verifyTransaction, convertEstimateToInvoice } = useBillingMutations();
   const [rejectReason, setRejectReason] = useState('');
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [editingClient, setEditingClient] = useState<any>(null);
 
   const isClient = userRole === 'client';
 
@@ -370,6 +372,7 @@ export default function BillingPage() {
                       <TableHead>Projects</TableHead>
                       <TableHead>GST</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -390,10 +393,15 @@ export default function BillingPage() {
                         </TableCell>
                         <TableCell className="font-mono text-xs">{c.gst_number || '-'}</TableCell>
                         <TableCell>{c.is_active ? <Badge className="bg-success/20 text-success border-0">Active</Badge> : <Badge variant="outline">Inactive</Badge>}</TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" className="gap-1" onClick={() => setEditingClient(c)}>
+                            <Pencil className="h-3.5 w-3.5" /> Edit
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {clients.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No billing clients yet</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No billing clients yet</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -402,6 +410,12 @@ export default function BillingPage() {
           </TabsContent>
         )}
       </Tabs>
+
+      <EditBillingClientDialog
+        client={editingClient}
+        open={!!editingClient}
+        onOpenChange={(open) => { if (!open) setEditingClient(null); }}
+      />
     </div>
   );
 }
