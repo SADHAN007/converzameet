@@ -50,7 +50,7 @@ export default function CreateTransactionDialog({ children, preselectedClientId,
 
     await createTransaction.mutateAsync({
       client_id: clientId,
-      invoice_id: invoiceId || undefined,
+      invoice_id: invoiceId && invoiceId !== 'none' ? invoiceId : undefined,
       amount_paid: Number(amount),
       payment_mode: paymentMode,
       utr_reference_number: utr || undefined,
@@ -82,7 +82,7 @@ export default function CreateTransactionDialog({ children, preselectedClientId,
               <Select value={invoiceId} onValueChange={setInvoiceId}>
                 <SelectTrigger><SelectValue placeholder="Link to invoice" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {filteredInvoices.map(i => (
                     <SelectItem key={i.id} value={i.id}>{i.invoice_number} - ₹{Number(i.grand_total).toLocaleString()}</SelectItem>
                   ))}
