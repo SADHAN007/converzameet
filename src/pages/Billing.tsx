@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion';
-import { FileText, Receipt, Plus, TrendingUp, Users, CreditCard, Download } from 'lucide-react';
+import { FileText, Receipt, Plus, TrendingUp, Users, CreditCard, Download, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/useAuth';
-import { useEstimates, useInvoices, useTransactions, useBillingClients, useBillingMutations } from '@/hooks/useBilling';
+import { useEstimates, useInvoices, useTransactions, useBillingClients, useBillingMutations, useEstimateLineItems, useInvoiceLineItems } from '@/hooks/useBilling';
 import BillingStatusBadge from '@/components/billing/BillingStatusBadge';
 import CreateEstimateDialog from '@/components/billing/CreateEstimateDialog';
 import CreateInvoiceDialog from '@/components/billing/CreateInvoiceDialog';
@@ -21,24 +21,130 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
 function EstimateDetailDialog({ estimate, children }: { estimate: any; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const { data: lineItems = [] } = useEstimateLineItems(open ? estimate.id : undefined);
+
+  const clientName = estimate.billing_clients?.company_name || estimate.billing_clients?.profiles?.full_name || '-';
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Estimate {estimate.estimate_number}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><span className="text-muted-foreground">Client:</span> {estimate.billing_clients?.company_name || estimate.billing_clients?.profiles?.full_name}</div>
-            <div><span className="text-muted-foreground">Date:</span> {format(new Date(estimate.estimate_date), 'MMM dd, yyyy')}</div>
-            <div><span className="text-muted-foreground">Status:</span> <BillingStatusBadge status={estimate.status} /></div>
-            <div><span className="text-muted-foreground">Grand Total:</span> <span className="font-bold">₹{Number(estimate.grand_total).toLocaleString()}</span></div>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl">Estimate {estimate.estimate_number}</DialogTitle>
+            <BillingStatusBadge status={estimate.status} />
           </div>
-          {estimate.notes && <div className="text-sm"><span className="text-muted-foreground">Notes:</span> {estimate.notes}</div>}
-          {estimate.rejection_reason && <div className="text-sm text-destructive"><span className="font-medium">Rejection Reason:</span> {estimate.rejection_reason}</div>}
+        </DialogHeader>
+
+        <div className="space-y-5">
+          {/* Client & Date Info */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Client</p>
+              <p className="font-semibold">{clientName}</p>
+              {estimate.billing_clients?.profiles?.email && (
+                <p className="text-sm text-muted-foreground">{estimate.billing_clients.profiles.email}</p>
+              )}
+            </div>
+            <div className="space-y-2 text-right">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date</p>
+                <p className="font-medium">{format(new Date(estimate.estimate_date), 'MMM dd, yyyy')}</p>
+              </div>
+              {estimate.expiry_date && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expiry</p>
+                  <p className="font-medium">{format(new Date(estimate.expiry_date), 'MMM dd, yyyy')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Line Items Table */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 uppercase tracking-wide text-muted-foreground">Line Items</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[40%]">Service</TableHead>
+                  <TableHead className="text-right">Qty</TableHead>
+                  <TableHead className="text-right">Unit Price</TableHead>
+                  <TableHead className="text-right">Tax %</TableHead>
+                  <TableHead className="text-right">Discount</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lineItems.map((item: any) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{item.service_name}</p>
+                        {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">{item.quantity}</TableCell>
+                    <TableCell className="text-right">₹{Number(item.unit_price).toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{item.tax_percent}%</TableCell>
+                    <TableCell className="text-right">₹{Number(item.discount).toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-medium">₹{Number(item.line_total).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+                {lineItems.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-4">No line items</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <Separator />
+
+          {/* Financial Summary */}
+          <div className="flex justify-end">
+            <div className="w-64 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>₹{Number(estimate.subtotal).toLocaleString()}</span>
+              </div>
+              {Number(estimate.discount_amount) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Discount</span>
+                  <span className="text-destructive">-₹{Number(estimate.discount_amount).toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax</span>
+                <span>₹{Number(estimate.tax_amount).toLocaleString()}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between font-bold text-base">
+                <span>Grand Total</span>
+                <span>₹{Number(estimate.grand_total).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes & Rejection */}
+          {estimate.notes && (
+            <div className="rounded-md bg-muted/50 p-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+              <p className="text-sm whitespace-pre-wrap">{estimate.notes}</p>
+            </div>
+          )}
+          {estimate.rejection_reason && (
+            <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
+              <p className="text-xs font-medium text-destructive uppercase tracking-wide mb-1">Rejection Reason</p>
+              <p className="text-sm">{estimate.rejection_reason}</p>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -46,22 +152,132 @@ function EstimateDetailDialog({ estimate, children }: { estimate: any; children:
 }
 
 function InvoiceDetailDialog({ invoice, children }: { invoice: any; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const { data: lineItems = [] } = useInvoiceLineItems(open ? invoice.id : undefined);
+
+  const clientName = invoice.billing_clients?.company_name || invoice.billing_clients?.profiles?.full_name || '-';
+  const balance = Number(invoice.grand_total) - Number(invoice.amount_paid);
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Invoice {invoice.invoice_number}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><span className="text-muted-foreground">Client:</span> {invoice.billing_clients?.company_name || invoice.billing_clients?.profiles?.full_name}</div>
-            <div><span className="text-muted-foreground">Date:</span> {format(new Date(invoice.invoice_date), 'MMM dd, yyyy')}</div>
-            <div><span className="text-muted-foreground">Due:</span> {invoice.due_date ? format(new Date(invoice.due_date), 'MMM dd, yyyy') : 'N/A'}</div>
-            <div><span className="text-muted-foreground">Status:</span> <BillingStatusBadge status={invoice.status} /></div>
-            <div><span className="text-muted-foreground">Grand Total:</span> <span className="font-bold">₹{Number(invoice.grand_total).toLocaleString()}</span></div>
-            <div><span className="text-muted-foreground">Paid:</span> ₹{Number(invoice.amount_paid).toLocaleString()}</div>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl">Invoice {invoice.invoice_number}</DialogTitle>
+            <BillingStatusBadge status={invoice.status} />
           </div>
+        </DialogHeader>
+
+        <div className="space-y-5">
+          {/* Client & Date Info */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Client</p>
+              <p className="font-semibold">{clientName}</p>
+              {invoice.billing_clients?.profiles?.email && (
+                <p className="text-sm text-muted-foreground">{invoice.billing_clients.profiles.email}</p>
+              )}
+            </div>
+            <div className="space-y-2 text-right">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Invoice Date</p>
+                <p className="font-medium">{format(new Date(invoice.invoice_date), 'MMM dd, yyyy')}</p>
+              </div>
+              {invoice.due_date && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Due Date</p>
+                  <p className="font-medium">{format(new Date(invoice.due_date), 'MMM dd, yyyy')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Line Items Table */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 uppercase tracking-wide text-muted-foreground">Line Items</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[40%]">Service</TableHead>
+                  <TableHead className="text-right">Qty</TableHead>
+                  <TableHead className="text-right">Unit Price</TableHead>
+                  <TableHead className="text-right">Tax %</TableHead>
+                  <TableHead className="text-right">Discount</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lineItems.map((item: any) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{item.service_name}</p>
+                        {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">{item.quantity}</TableCell>
+                    <TableCell className="text-right">₹{Number(item.unit_price).toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{item.tax_percent}%</TableCell>
+                    <TableCell className="text-right">₹{Number(item.discount).toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-medium">₹{Number(item.line_total).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+                {lineItems.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-4">No line items</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <Separator />
+
+          {/* Financial Summary */}
+          <div className="flex justify-end">
+            <div className="w-64 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>₹{Number(invoice.subtotal).toLocaleString()}</span>
+              </div>
+              {Number(invoice.discount_amount) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Discount</span>
+                  <span className="text-destructive">-₹{Number(invoice.discount_amount).toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax</span>
+                <span>₹{Number(invoice.tax_amount).toLocaleString()}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between font-bold text-base">
+                <span>Grand Total</span>
+                <span>₹{Number(invoice.grand_total).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Amount Paid</span>
+                <span className="text-success">₹{Number(invoice.amount_paid).toLocaleString()}</span>
+              </div>
+              {balance > 0 && (
+                <div className="flex justify-between font-semibold text-destructive">
+                  <span>Balance Due</span>
+                  <span>₹{balance.toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Notes */}
+          {invoice.notes && (
+            <div className="rounded-md bg-muted/50 p-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+              <p className="text-sm whitespace-pre-wrap">{invoice.notes}</p>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -201,7 +417,7 @@ export default function BillingPage() {
                       <TableCell>
                         <div className="flex gap-1">
                           <EstimateDetailDialog estimate={est}>
-                            <Button variant="ghost" size="sm">View</Button>
+                            <Button variant="ghost" size="sm" className="gap-1"><Eye className="h-3.5 w-3.5" /> View</Button>
                           </EstimateDetailDialog>
                           <Button variant="ghost" size="sm" className="gap-1" onClick={() => downloadEstimatePdf(est.id).catch(() => toast.error('Failed to generate PDF'))}>
                             <Download className="h-3.5 w-3.5" /> PDF
@@ -269,7 +485,7 @@ export default function BillingPage() {
                       <TableCell>
                         <div className="flex gap-1">
                           <InvoiceDetailDialog invoice={inv}>
-                            <Button variant="ghost" size="sm">View</Button>
+                            <Button variant="ghost" size="sm" className="gap-1"><Eye className="h-3.5 w-3.5" /> View</Button>
                           </InvoiceDetailDialog>
                           <Button variant="ghost" size="sm" className="gap-1" onClick={() => downloadInvoicePdf(inv.id).catch(() => toast.error('Failed to generate PDF'))}>
                             <Download className="h-3.5 w-3.5" /> PDF
