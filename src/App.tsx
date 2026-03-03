@@ -24,6 +24,7 @@ import CreateUser from "./pages/CreateUser";
 import DigitalMarketing from "./pages/DigitalMarketing";
 import GraphicsDesign from "./pages/GraphicsDesign";
 import Reports from "./pages/Reports";
+import Billing from "./pages/Billing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/digital-marketing" element={<DigitalMarketing />} />
                 <Route path="/graphics-design" element={<GraphicsDesign />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/billing" element={<Billing />} />
                 <Route path="/profile" element={<Profile />} />
               </Route>
               <Route path="*" element={<NotFound />} />
