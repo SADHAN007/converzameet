@@ -27,16 +27,22 @@ export function useBillingClients() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       
-      // Fetch profile info separately
+      const clientIds = billingClients.map(bc => bc.id);
       const profileIds = billingClients.map(bc => bc.profile_id);
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, avatar_url')
-        .in('id', profileIds);
+
+      const [{ data: profiles }, { data: clientProjects }, { data: projects }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, email, avatar_url').in('id', profileIds),
+        supabase.from('billing_client_projects').select('billing_client_id, project_id').in('billing_client_id', clientIds),
+        supabase.from('projects').select('id, name'),
+      ]);
       
       return billingClients.map(bc => ({
         ...bc,
         profiles: profiles?.find(p => p.id === bc.profile_id) || null,
+        assigned_projects: (clientProjects || [])
+          .filter(cp => cp.billing_client_id === bc.id)
+          .map(cp => projects?.find(p => p.id === cp.project_id))
+          .filter(Boolean) as { id: string; name: string }[],
       }));
     },
     enabled: !!user,
