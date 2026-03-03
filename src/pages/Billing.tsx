@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FileText, Receipt, Plus, TrendingUp, Users, CreditCard } from 'lucide-react';
+import { FileText, Receipt, Plus, TrendingUp, Users, CreditCard, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,6 +12,8 @@ import CreateInvoiceDialog from '@/components/billing/CreateInvoiceDialog';
 import CreateTransactionDialog from '@/components/billing/CreateTransactionDialog';
 import CreateBillingClientDialog from '@/components/billing/CreateBillingClientDialog';
 import { format } from 'date-fns';
+import { downloadEstimatePdf, downloadInvoicePdf } from '@/lib/billing-pdf';
+import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -201,6 +203,9 @@ export default function BillingPage() {
                           <EstimateDetailDialog estimate={est}>
                             <Button variant="ghost" size="sm">View</Button>
                           </EstimateDetailDialog>
+                          <Button variant="ghost" size="sm" className="gap-1" onClick={() => downloadEstimatePdf(est.id).catch(() => toast.error('Failed to generate PDF'))}>
+                            <Download className="h-3.5 w-3.5" /> PDF
+                          </Button>
                           {isAdmin && est.status === 'draft' && (
                             <Button variant="outline" size="sm" onClick={() => updateEstimateStatus.mutate({ id: est.id, status: 'sent' })}>Send</Button>
                           )}
@@ -266,6 +271,9 @@ export default function BillingPage() {
                           <InvoiceDetailDialog invoice={inv}>
                             <Button variant="ghost" size="sm">View</Button>
                           </InvoiceDetailDialog>
+                          <Button variant="ghost" size="sm" className="gap-1" onClick={() => downloadInvoicePdf(inv.id).catch(() => toast.error('Failed to generate PDF'))}>
+                            <Download className="h-3.5 w-3.5" /> PDF
+                          </Button>
                           {isAdmin && inv.status === 'draft' && (
                             <Button variant="outline" size="sm" onClick={() => updateInvoiceStatus.mutate({ id: inv.id, status: 'sent' })}>Send</Button>
                           )}
