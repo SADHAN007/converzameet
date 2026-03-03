@@ -176,26 +176,31 @@ export function useBillingMutations() {
 
   const createBillingClient = useMutation({
     mutationFn: async (data: {
-      profile_id: string;
+      profile_id?: string;
+      client_name?: string;
       company_name?: string;
       gst_number?: string;
+      pan_number?: string;
       billing_address?: string;
       billing_city?: string;
       billing_state?: string;
       billing_zip?: string;
       billing_email?: string;
       billing_phone?: string;
+      secondary_contact?: string;
+      billing_frequency?: string;
       notes?: string;
     }) => {
+      const insertData: Record<string, unknown> = {
+        ...data,
+        created_by: user?.id,
+      };
+      // Remove undefined values
+      Object.keys(insertData).forEach(k => insertData[k] === undefined && delete insertData[k]);
+
       const { data: client, error } = await supabase
         .from('billing_clients')
-        .upsert(
-          {
-            ...data,
-            created_by: user?.id,
-          },
-          { onConflict: 'profile_id' }
-        )
+        .insert(insertData)
         .select('id, profile_id')
         .single();
 
@@ -204,7 +209,7 @@ export function useBillingMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['billing-clients'] });
-      toast.success('Billing client saved');
+      toast.success('Billing client created');
     },
     onError: (e: Error) => toast.error(e.message),
   });

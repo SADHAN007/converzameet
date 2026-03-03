@@ -85,9 +85,11 @@ export type Database = {
           billing_address: string | null
           billing_city: string | null
           billing_email: string | null
+          billing_frequency: string | null
           billing_phone: string | null
           billing_state: string | null
           billing_zip: string | null
+          client_name: string | null
           company_name: string | null
           created_at: string
           created_by: string | null
@@ -95,16 +97,20 @@ export type Database = {
           id: string
           is_active: boolean
           notes: string | null
-          profile_id: string
+          pan_number: string | null
+          profile_id: string | null
+          secondary_contact: string | null
           updated_at: string
         }
         Insert: {
           billing_address?: string | null
           billing_city?: string | null
           billing_email?: string | null
+          billing_frequency?: string | null
           billing_phone?: string | null
           billing_state?: string | null
           billing_zip?: string | null
+          client_name?: string | null
           company_name?: string | null
           created_at?: string
           created_by?: string | null
@@ -112,16 +118,20 @@ export type Database = {
           id?: string
           is_active?: boolean
           notes?: string | null
-          profile_id: string
+          pan_number?: string | null
+          profile_id?: string | null
+          secondary_contact?: string | null
           updated_at?: string
         }
         Update: {
           billing_address?: string | null
           billing_city?: string | null
           billing_email?: string | null
+          billing_frequency?: string | null
           billing_phone?: string | null
           billing_state?: string | null
           billing_zip?: string | null
+          client_name?: string | null
           company_name?: string | null
           created_at?: string
           created_by?: string | null
@@ -129,7 +139,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           notes?: string | null
-          profile_id?: string
+          pan_number?: string | null
+          profile_id?: string | null
+          secondary_contact?: string | null
           updated_at?: string
         }
         Relationships: []
