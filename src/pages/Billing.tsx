@@ -1,18 +1,16 @@
 import { motion } from 'framer-motion';
-import { FileText, Receipt, CreditCard, Users, Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Pencil } from 'lucide-react';
+import { FileText, Receipt, Plus, TrendingUp, Users, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/useAuth';
-import { useEstimates, useInvoices, useTransactions, useBillingClients } from '@/hooks/useBilling';
+import { useEstimates, useInvoices, useTransactions, useBillingClients, useBillingMutations } from '@/hooks/useBilling';
 import BillingStatusBadge from '@/components/billing/BillingStatusBadge';
 import CreateEstimateDialog from '@/components/billing/CreateEstimateDialog';
 import CreateInvoiceDialog from '@/components/billing/CreateInvoiceDialog';
 import CreateTransactionDialog from '@/components/billing/CreateTransactionDialog';
 import CreateBillingClientDialog from '@/components/billing/CreateBillingClientDialog';
-import EditBillingClientDialog from '@/components/billing/EditBillingClientDialog';
-import { useBillingMutations } from '@/hooks/useBilling';
 import { format } from 'date-fns';
 import { Navigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
@@ -77,7 +75,7 @@ export default function BillingPage() {
   const { updateEstimateStatus, updateInvoiceStatus, verifyTransaction, convertEstimateToInvoice } = useBillingMutations();
   const [rejectReason, setRejectReason] = useState('');
   const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [editingClient, setEditingClient] = useState<any>(null);
+  
 
   const isClient = userRole === 'client';
 
@@ -172,7 +170,6 @@ export default function BillingPage() {
           <TabsTrigger value="estimates">Estimates</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          {isAdmin && <TabsTrigger value="clients">Clients</TabsTrigger>}
         </TabsList>
 
         {/* ESTIMATES TAB */}
@@ -351,71 +348,7 @@ export default function BillingPage() {
           </Card>
         </TabsContent>
 
-        {/* CLIENTS TAB */}
-        {isAdmin && (
-          <TabsContent value="clients">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Billing Clients</CardTitle>
-                  <CreateBillingClientDialog><Button size="sm" className="gap-1"><Plus className="h-4 w-4" /> Add Client</Button></CreateBillingClientDialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Projects</TableHead>
-                      <TableHead>GST</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {clients.map(c => (
-                      <TableRow key={c.id}>
-                        <TableCell className="font-medium">{(c as any).profiles?.full_name || '-'}</TableCell>
-                        <TableCell>{c.company_name || '-'}</TableCell>
-                        <TableCell>{c.billing_email || (c as any).profiles?.email || '-'}</TableCell>
-                        <TableCell>{c.billing_phone || '-'}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {((c as any).assigned_projects || []).length > 0
-                              ? (c as any).assigned_projects.map((p: { id: string; name: string }) => (
-                                  <Badge key={p.id} variant="secondary" className="text-xs">{p.name}</Badge>
-                                ))
-                              : <span className="text-muted-foreground text-xs">None</span>}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{c.gst_number || '-'}</TableCell>
-                        <TableCell>{c.is_active ? <Badge className="bg-success/20 text-success border-0">Active</Badge> : <Badge variant="outline">Inactive</Badge>}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" className="gap-1" onClick={() => setEditingClient(c)}>
-                            <Pencil className="h-3.5 w-3.5" /> Edit
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {clients.length === 0 && (
-                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No billing clients yet</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
       </Tabs>
-
-      <EditBillingClientDialog
-        client={editingClient}
-        open={!!editingClient}
-        onOpenChange={(open) => { if (!open) setEditingClient(null); }}
-      />
     </div>
   );
 }

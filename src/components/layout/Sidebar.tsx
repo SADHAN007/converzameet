@@ -24,6 +24,7 @@ import {
   Palette,
   BarChart3,
   Receipt,
+  Contact,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -72,7 +73,11 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
     { to: '/calendar', icon: Calendar, label: 'Calendar' },
     { to: '/mom', icon: FileText, label: 'Minutes' },
     { to: '/calls', icon: Phone, label: 'Calls', badge: missedCount },
+  ];
+
+  const financeNav: NavItemType[] = [
     { to: '/billing', icon: Receipt, label: 'Billing' },
+    { to: '/clients', icon: Contact, label: 'Clients' },
   ];
 
   const isGraphicDesigner = userRole === 'graphic_designer';
@@ -206,6 +211,19 @@ export default function Sidebar({ collapsed, onToggle, isMobile }: SidebarProps)
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         <div className="space-y-1">
           {mainNav.map((item) => (
+            <NavItem key={item.to} {...item} />
+          ))}
+        </div>
+
+        <div className={cn('pt-4 pb-2', !collapsed && 'px-3')}>
+          {!collapsed && (
+            <p className="text-xs font-medium text-sidebar-foreground/50 uppercase tracking-wider">
+              Finance
+            </p>
+          )}
+        </div>
+        <div className="space-y-1">
+          {financeNav.map((item) => (
             <NavItem key={item.to} {...item} />
           ))}
         </div>
