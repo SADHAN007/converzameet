@@ -100,6 +100,7 @@ export default function Clients() {
                   <TableHead>Phone</TableHead>
                   <TableHead>Projects</TableHead>
                   <TableHead>GST</TableHead>
+                  <TableHead>Frequency</TableHead>
                   <TableHead>Status</TableHead>
                   {isAdmin && <TableHead>Actions</TableHead>}
                 </TableRow>
@@ -121,6 +122,13 @@ export default function Clients() {
                       </div>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{c.gst_number || '-'}</TableCell>
+                    <TableCell>
+                      {c.billing_frequency ? (
+                        <Badge variant="secondary" className="text-xs capitalize">
+                          {(c.billing_frequency || 'one_time').replace(/_/g, ' ')}
+                        </Badge>
+                      ) : <span className="text-muted-foreground text-xs">-</span>}
+                    </TableCell>
                     <TableCell>{c.is_active ? <Badge className="bg-success/20 text-success border-0">Active</Badge> : <Badge variant="outline">Inactive</Badge>}</TableCell>
                     {isAdmin && (
                       <TableCell>
@@ -132,7 +140,7 @@ export default function Clients() {
                   </TableRow>
                 ))}
                 {clients.length === 0 && (
-                  <TableRow><TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">No billing clients yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={isAdmin ? 9 : 8} className="text-center text-muted-foreground py-8">No billing clients yet</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
