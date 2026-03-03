@@ -367,6 +367,7 @@ export default function BillingPage() {
                       <TableHead>Company</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Phone</TableHead>
+                      <TableHead>Projects</TableHead>
                       <TableHead>GST</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -378,12 +379,21 @@ export default function BillingPage() {
                         <TableCell>{c.company_name || '-'}</TableCell>
                         <TableCell>{c.billing_email || (c as any).profiles?.email || '-'}</TableCell>
                         <TableCell>{c.billing_phone || '-'}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {((c as any).assigned_projects || []).length > 0
+                              ? (c as any).assigned_projects.map((p: { id: string; name: string }) => (
+                                  <Badge key={p.id} variant="secondary" className="text-xs">{p.name}</Badge>
+                                ))
+                              : <span className="text-muted-foreground text-xs">None</span>}
+                          </div>
+                        </TableCell>
                         <TableCell className="font-mono text-xs">{c.gst_number || '-'}</TableCell>
                         <TableCell>{c.is_active ? <Badge className="bg-success/20 text-success border-0">Active</Badge> : <Badge variant="outline">Inactive</Badge>}</TableCell>
                       </TableRow>
                     ))}
                     {clients.length === 0 && (
-                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No billing clients yet</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No billing clients yet</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
